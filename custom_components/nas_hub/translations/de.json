@@ -15,7 +15,11 @@
       "jellyfin": {
         "title": "Jellyfin",
         "description": "API-Schlüssel: Jellyfin-Dashboard → API-Schlüssel → +.",
-        "data": { "url": "Adresse (lokal)", "api_key": "API-Schlüssel", "public_url": "Öffentliche Adresse (optional)" },
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
         "data_description": {
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:8096",
           "public_url": "Für Links in den Karten, z. B. https://jellyfin.beispiel.duckdns.org. Leer = lokale Adresse."
@@ -24,7 +28,11 @@
       "audiobookshelf": {
         "title": "Audiobookshelf",
         "description": "API-Schlüssel: Audiobookshelf → Einstellungen → API-Schlüssel. „Weiterhören“ zeigt den Fortschritt des Benutzers, dem der Schlüssel gehört.",
-        "data": { "url": "Adresse (lokal)", "api_key": "API-Schlüssel", "public_url": "Öffentliche Adresse (optional)" },
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
         "data_description": {
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:13378",
           "public_url": "Für Links in den Karten. Leer = lokale Adresse."
@@ -33,7 +41,11 @@
       "sonarr": {
         "title": "Sonarr",
         "description": "API-Schlüssel: Sonarr → Settings → General → Security.",
-        "data": { "url": "Adresse (lokal)", "api_key": "API-Schlüssel", "public_url": "Öffentliche Adresse (optional)" },
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
         "data_description": {
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:8989",
           "public_url": "Für Links in den Karten. Leer = lokale Adresse."
@@ -42,7 +54,11 @@
       "radarr": {
         "title": "Radarr",
         "description": "API-Schlüssel: Radarr → Settings → General → Security.",
-        "data": { "url": "Adresse (lokal)", "api_key": "API-Schlüssel", "public_url": "Öffentliche Adresse (optional)" },
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
         "data_description": {
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:7878",
           "public_url": "Für Links in den Karten. Leer = lokale Adresse."
@@ -55,12 +71,18 @@
       "reconfigure": {
         "title": "{service} ändern",
         "description": "Neue Adresse oder neuer API-Schlüssel. Der Schlüssel wird vor dem Speichern geprüft.",
-        "data": { "url": "Adresse (lokal)", "api_key": "API-Schlüssel", "public_url": "Öffentliche Adresse (optional)" }
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        }
       },
       "reauth_confirm": {
         "title": "{service}: neuer API-Schlüssel",
         "description": "{service} nimmt den gespeicherten API-Schlüssel nicht mehr an.",
-        "data": { "api_key": "API-Schlüssel" }
+        "data": {
+          "api_key": "API-Schlüssel"
+        }
       }
     },
     "error": {
@@ -83,36 +105,62 @@
           "list_minutes": "Listen abrufen alle",
           "live_seconds": "Läuft gerade/Downloads abrufen alle",
           "days_ahead": "Vorschau",
-          "availability_entity": "NAS wach (Entität)"
+          "availability_entity": "NAS wach (Entität)",
+          "show_cinema": "Kinostarts zeigen"
         },
         "data_description": {
           "list_minutes": "Neu hinzugefügt, Nächste, Weiterhören. Die letzte Antwort bleibt erhalten, während die NAS schläft.",
           "live_seconds": "Wird nur abgefragt, solange die NAS wach ist.",
-          "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt; geht sie an, wird nach 90 s alles aktualisiert. Leer = immer abfragen."
+          "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt; geht sie an, wird nach 90 s alles aktualisiert. Leer = immer abfragen.",
+          "show_cinema": "Aus: nur Digital- und Disc-Veröffentlichungen, also was man zu Hause schauen kann."
         }
       },
       "ebooks": {
         "title": "E-Book-Versand",
         "description": "Webhook: `{webhook_path}`",
-        "data": { "item_count": "Einträge pro Liste" }
+        "data": {
+          "item_count": "Einträge pro Liste"
+        }
       }
     }
   },
   "entity": {
     "sensor": {
-      "jellyfin_latest": { "name": "Neu" },
-      "jellyfin_now_playing": { "name": "Läuft gerade" },
-      "sonarr_upcoming": { "name": "Nächste Folgen" },
-      "sonarr_queue": { "name": "Downloads" },
-      "radarr_upcoming": { "name": "Nächste Filme" },
-      "radarr_queue": { "name": "Downloads" },
-      "abs_new": { "name": "Neue Hörbücher" },
-      "abs_in_progress": { "name": "Weiterhören" },
-      "abs_now_playing": { "name": "Läuft gerade" },
-      "ebooks_sent": { "name": "Verschickt" }
+      "jellyfin_latest": {
+        "name": "Neu"
+      },
+      "jellyfin_now_playing": {
+        "name": "Läuft gerade"
+      },
+      "sonarr_upcoming": {
+        "name": "Nächste Folgen"
+      },
+      "sonarr_queue": {
+        "name": "Downloads"
+      },
+      "radarr_upcoming": {
+        "name": "Nächste Filme"
+      },
+      "radarr_queue": {
+        "name": "Downloads"
+      },
+      "abs_new": {
+        "name": "Neue Hörbücher"
+      },
+      "abs_in_progress": {
+        "name": "Weiterhören"
+      },
+      "abs_now_playing": {
+        "name": "Läuft gerade"
+      },
+      "ebooks_sent": {
+        "name": "Verschickt"
+      }
     },
     "button": {
-      "refresh": { "name": "Aktualisieren" }
+      "refresh": {
+        "name": "Aktualisieren"
+      }
     }
   }
 }

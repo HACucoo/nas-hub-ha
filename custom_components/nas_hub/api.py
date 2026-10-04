@@ -413,10 +413,15 @@ class RadarrClient(ArrClient):
 
     list_keys = ("upcoming",)
     live_keys = ("queue",)
+    # A cinema start is nothing to watch at home yet; off unless the options say so
+    show_cinema = False
 
     async def fetch_lists(self, count: int, days_ahead: int) -> dict[str, list]:
         now = _utc_now()
         start, end = now - timedelta(hours=6), now + timedelta(days=days_ahead)
+        kinds = (("digitalRelease", "digital"), ("physicalRelease", "physical"))
+        if self.show_cinema:
+            kinds += (("inCinemas", "cinema"),)
         movies = await self._get("/api/v3/calendar", {
             "start": _iso(start),
             "end": _iso(end),
@@ -426,7 +431,7 @@ class RadarrClient(ArrClient):
         for movie in movies or []:
             # The calendar lists a movie for any of its dates; show the next one
             dates = []
-            for field, kind in (("digitalRelease", "digital"), ("physicalRelease", "physical"), ("inCinemas", "cinema")):
+            for field, kind in kinds:
                 value = movie.get(field)
                 if not value:
                     continue

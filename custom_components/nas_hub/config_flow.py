@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -40,6 +41,7 @@ from .const import (
     OPT_ITEM_COUNT,
     OPT_LIST_MINUTES,
     OPT_LIVE_SECONDS,
+    OPT_SHOW_CINEMA,
     SERVICE_AUDIOBOOKSHELF,
     SERVICE_EBOOKS,
     SERVICE_JELLYFIN,
@@ -222,6 +224,8 @@ class NasHubOptionsFlow(OptionsFlow):
             schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
             if service in DEFAULT_DAYS_AHEAD:
                 schema[vol.Required(OPT_DAYS_AHEAD, default=opts.get(OPT_DAYS_AHEAD, DEFAULT_DAYS_AHEAD[service]))] = _number(1, 365, unit="d")
+            if service == SERVICE_RADARR:
+                schema[vol.Required(OPT_SHOW_CINEMA, default=opts.get(OPT_SHOW_CINEMA, False))] = BooleanSelector()
             schema[vol.Optional(
                 OPT_AVAILABILITY_ENTITY,
                 description={"suggested_value": opts.get(OPT_AVAILABILITY_ENTITY)},

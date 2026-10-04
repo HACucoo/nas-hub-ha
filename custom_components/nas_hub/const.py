@@ -37,6 +37,7 @@ OPT_LIVE_SECONDS = "live_seconds"
 OPT_ITEM_COUNT = "item_count"
 OPT_DAYS_AHEAD = "days_ahead"
 OPT_AVAILABILITY_ENTITY = "availability_entity"
+OPT_SHOW_CINEMA = "show_cinema"
 
 DEFAULT_LIST_MINUTES = 60
 DEFAULT_LIVE_SECONDS = 60

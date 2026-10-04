@@ -10,6 +10,7 @@
  *   layout: tiles          <- tiles (large, like Homarr) or rows (slim, like the
  *                             Meal Planner card — fits a swipe card on the start page)
  *   max_items: 8
+ *   image_style: auto      <- auto (upcoming lists muted, others bright), bright or muted
  *   show_genres: true      <- genre chips (tiles only)
  *   relative: true         <- "Heute", "Morgen", "vor 2 Tagen" on the right
  *   open_links: false      <- tapping an item opens it in Jellyfin, Sonarr, …
@@ -253,6 +254,13 @@ class NasHubCard extends HTMLElement {
       + (more > 0 ? `<span class="chip">+${more}</span>` : '');
   }
 
+  /** Upcoming lists get muted artwork, so "new" and "next" differ at a glance. */
+  _muted(list) {
+    const style = this._config.image_style || 'auto';
+    if (style === 'auto') return list === 'upcoming';
+    return style === 'muted';
+  }
+
   _tile(v) {
     return `
       <div class="tile${v.image ? ' has-photo' : ''}${v.dim ? ' dim' : ''}"${v.link ? ` data-link="${esc(v.link)}"` : ''}>
@@ -319,6 +327,7 @@ class NasHubCard extends HTMLElement {
       content = `<div class="empty-note">${esc(S.noEntities)}</div>`;
     } else {
       const { states, items, list } = this._collect();
+      this._isMuted = this._muted(list);
       const views = items.map(i => this._view(i, S, lang));
       content = views.length
         ? views.map(v => (layout === 'rows' ? this._row(v) : this._tile(v))).join('')
@@ -329,7 +338,7 @@ class NasHubCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>${CARD_CSS}</style>
-      <ha-card class="${layout}${this._config.open_links ? ' links' : ''}">
+      <ha-card class="${layout}${this._config.open_links ? ' links' : ''}${this._isMuted ? ' muted' : ''}">
         ${this._config.title ? `<div class="title">${esc(this._config.title)}</div>` : ''}
         <div class="list">${content}</div>
         ${footer}
@@ -364,9 +373,16 @@ const CARD_CSS = `
   /* The artwork fills the item; a gradient keeps the text side readable.
      No blur or backdrop-filter: cheap enough for an old wall tablet. */
   .bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  /* Like the Meal Planner card: dark behind the text, the artwork at full
+     brightness on the right edge */
   .has-photo::after {
     content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.62) 50%, rgba(0,0,0,0.25) 100%);
+    background: linear-gradient(90deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 100%);
+  }
+  /* Upcoming: washed out and darker, so it never looks like it is already there */
+  .muted .bg { filter: grayscale(0.8); opacity: 0.45; }
+  .muted .has-photo::after {
+    background: linear-gradient(90deg, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.30) 100%);
   }
   .has-photo { color: #fff; border-color: rgba(255,255,255,0.10); }
   .tile > :not(.bg), .row > :not(.bg) { position: relative; z-index: 1; }
@@ -444,6 +460,10 @@ const EDITOR_LABELS = {
     layout_tiles: 'Kacheln (groß)',
     layout_rows: 'Zeilen (schmal)',
     max_items: 'Höchstens so viele Einträge',
+    image_style: 'Bilder',
+    image_style_auto: 'Automatisch (Kommendes gedämpft)',
+    image_style_bright: 'Hell',
+    image_style_muted: 'Gedämpft',
     show_genres: 'Genres als Chips zeigen',
     relative: 'Heute / Morgen / vor x Tagen rechts zeigen',
     open_links: 'Tippen öffnet den Eintrag im Dienst',
@@ -456,6 +476,10 @@ const EDITOR_LABELS = {
     layout_tiles: 'Tiles (large)',
     layout_rows: 'Rows (slim)',
     max_items: 'At most this many items',
+    image_style: 'Artwork',
+    image_style_auto: 'Automatic (upcoming muted)',
+    image_style_bright: 'Bright',
+    image_style_muted: 'Muted',
     show_genres: 'Show genres as chips',
     relative: 'Show today / tomorrow / x days ago on the right',
     open_links: 'Tapping opens the item in its service',
@@ -472,6 +496,10 @@ function editorSchema(L) {
       selector: { select: { mode: 'dropdown', options: ['tiles', 'rows'].map(value => ({ value, label: L[`layout_${value}`] })) } },
     },
     { name: 'max_items', selector: { number: { min: 1, max: 20, step: 1, mode: 'slider' } } },
+    {
+      name: 'image_style',
+      selector: { select: { mode: 'dropdown', options: ['auto', 'bright', 'muted'].map(value => ({ value, label: L[`image_style_${value}`] })) } },
+    },
     { name: 'show_genres', selector: { boolean: {} } },
     { name: 'relative', selector: { boolean: {} } },
     { name: 'open_links', selector: { boolean: {} } },
@@ -479,7 +507,7 @@ function editorSchema(L) {
   ];
 }
 
-const EDITOR_DEFAULTS = { layout: 'tiles', max_items: 8, show_genres: true, relative: true, open_links: false };
+const EDITOR_DEFAULTS = { layout: 'tiles', image_style: 'auto', max_items: 8, show_genres: true, relative: true, open_links: false };
 
 class NasHubCardEditor extends HTMLElement {
   setConfig(config) {

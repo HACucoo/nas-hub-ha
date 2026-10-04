@@ -56,9 +56,10 @@ entities:                 # one or more NAS Hub sensors, merged into one list
 title: Next up
 layout: tiles             # tiles (large) or rows (slim, fits a swipe card)
 max_items: 8
+image_style: auto         # auto (upcoming muted), bright or muted
 show_genres: true
 relative: true            # Today / Tomorrow / 2 days ago
 open_links: false         # tap opens the item in Jellyfin, Sonarr, …
 ```
 
-Everything can be set in the visual card editor. After an update, add a version to the resource URL (`…/nas-hub-card.js?v=0.1.0`) so tablets load the new file.
+Everything can be set in the visual card editor. After an update, add a version to the resource URL (`…/nas-hub-card.js?v=0.2.0`) so tablets load the new file.

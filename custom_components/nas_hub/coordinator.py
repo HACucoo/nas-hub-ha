@@ -43,7 +43,9 @@ from .const import (
     OPT_ITEM_COUNT,
     OPT_LIST_MINUTES,
     OPT_LIVE_SECONDS,
+    OPT_SHOW_CINEMA,
     SERVICE_EBOOKS,
+    SERVICE_RADARR,
     STORAGE_KEY,
     STORAGE_VERSION,
     WAKE_REFRESH_DELAY,
@@ -75,6 +77,8 @@ class NasHub:
                 entry.data[CONF_API_KEY],
                 entry.data.get(CONF_PUBLIC_URL) or None,
             )
+            if self.service == SERVICE_RADARR:
+                self.client.show_cinema = bool(entry.options.get(OPT_SHOW_CINEMA, False))
         self.stored: dict[str, Any] = {}
         self.lists = ListCoordinator(hass, entry, self)
         self.live: LiveCoordinator | None = (
