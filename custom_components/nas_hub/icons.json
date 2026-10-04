@@ -1,0 +1,19 @@
+{
+  "entity": {
+    "sensor": {
+      "jellyfin_latest": { "default": "mdi:movie-open-star" },
+      "jellyfin_now_playing": { "default": "mdi:play-circle" },
+      "sonarr_upcoming": { "default": "mdi:television-classic" },
+      "sonarr_queue": { "default": "mdi:download" },
+      "radarr_upcoming": { "default": "mdi:filmstrip" },
+      "radarr_queue": { "default": "mdi:download" },
+      "abs_new": { "default": "mdi:book-music" },
+      "abs_in_progress": { "default": "mdi:book-clock" },
+      "abs_now_playing": { "default": "mdi:headphones" },
+      "ebooks_sent": { "default": "mdi:book-open-page-variant" }
+    },
+    "button": {
+      "refresh": { "default": "mdi:refresh" }
+    }
+  }
+}

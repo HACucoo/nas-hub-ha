@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAS Hub Card Preview</title>
+<style>
+  :root {
+    --primary-color: #03a9f4; --text-primary-color: #fff;
+    --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b;
+    --secondary-background-color: #282828; --divider-color: rgba(225,225,225,0.12);
+    --card-background-color: #1c1c1c;
+  }
+  body { background: #111; font-family: Roboto, system-ui, sans-serif; margin: 16px; color: #ddd; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; align-items: start; }
+  ha-card { display: block; background: var(--card-background-color); border-radius: 12px; }
+  ha-icon { display: inline-block; width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px); border-radius: 50%; background: currentColor; opacity: .55; }
+  h3 { font-weight: 500; font-size: 13px; margin: 0 0 6px; color: #888; }
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<script>
+  customElements.define('ha-card', class extends HTMLElement {});
+  customElements.define('ha-icon', class extends HTMLElement {});
+  const iso = (days, h = 20) => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(h, 0, 0, 0); return d.toISOString(); };
+  const art = i => `/dev/art${i}.svg`;
+  const sensor = (list, order, items, extra = {}) => ({ state: items[0]?.title || 'unknown', attributes: { service: 'x', list, order, count: items.length, updated: iso(-1, 2), stale: false, asleep: false, items, ...extra } });
+  const states = {
+    'sensor.jellyfin_neu': sensor('latest', 'desc', [
+      { id: 'a', kind: 'movie', title: 'The Frighteners', subtitle: 'Der Tod ist keine Art seinen Lebensunterhalt zu verdienen!', date: iso(-1), date_type: 'added', released: '1996-07-18', meta: 'Universal Pictures', rating: 7.0, genres: ['Horror', 'Comedy'], image: art(0) },
+      { id: 'b', kind: 'series', title: 'Futurama', episode: 'S14E08', new_count: 1, date: iso(-2), date_type: 'added', released: '1999-03-28', meta: 'FOX', rating: 8.4, genres: ['Animation', 'Comedy', 'Science Fiction', 'Family', 'Adventure'], image: art(1) },
+      { id: 'c', kind: 'series', title: "It's Always Sunny in Philadelphia", episode: null, new_count: 3, date: iso(-5), date_type: 'added', released: '2005-08-04', meta: 'FXX', rating: 8.1, genres: ['Comedy'], image: null },
+    ], { stale: true, asleep: true }),
+    'sensor.sonarr_nachste_folgen': sensor('upcoming', 'asc', [
+      { id: 'd', kind: 'episode', title: 'Scrubs', subtitle: 'Mein neuer Anfang', episode: 'S10E03', date: iso(0, 3), date_type: 'air', meta: 'ABC (US)', rating: 7.7, genres: ['Comedy'], image: art(2) },
+      { id: 'e', kind: 'episode', title: 'Brothers', episode: 'S01E02–E08', new_count: 7, date: iso(3, 9), date_type: 'air', meta: 'Netflix', genres: ['Drama'], image: art(3) },
+    ]),
+    'sensor.radarr_nachste_filme': sensor('upcoming', 'asc', [
+      { id: 'f', kind: 'movie', title: 'Coyote vs. ACME', date: iso(1).slice(0, 10), date_type: 'digital', meta: 'Warner Bros. Animation', rating: 7.6, genres: ['Animation', 'Comedy', 'Family'], image: art(4) },
+    ]),
+    'sensor.downloads': sensor('queue', 'none', [
+      { id: 'g', kind: 'download', media: 'episode', title: 'Futurama', episode: 'S14E09', status: 'downloading', timeleft: '00:12:30', progress: 0.42, image: art(1) },
+      { id: 'h', kind: 'download', media: 'movie', title: 'Backrooms', status: 'queued', progress: 0, image: null },
+    ]),
+    'sensor.lauft_gerade': sensor('now_playing', 'none', [
+      { id: 'i', kind: 'session', media: 'episode', title: 'Futurama', subtitle: 'Oceans Three', episode: 'S14E08', meta: 'Alex · Firefox', paused: false, play_method: 'audio', progress: 0.63, image: art(1) },
+      { id: 'j', kind: 'session', media: 'audiobook', title: 'Der Name des Windes', subtitle: 'Patrick Rothfuss', meta: 'Sam · iPhone', paused: false, progress: 0.31, image: art(3) },
+    ]),
+    'sensor.abs_weiterhoren': sensor('in_progress', 'desc', [
+      { id: 'k', kind: 'audiobook', title: 'Der Name des Windes', subtitle: 'Patrick Rothfuss', date: iso(0, 7), date_type: 'progress', meta: 'Die Königsmörder-Chronik', series: 'Die Königsmörder-Chronik', progress: 0.31, genres: ['Fantasy'], image: art(3) },
+    ]),
+    'sensor.ebooks_verschickt': sensor('sent', 'desc', [
+      { id: 'l', kind: 'ebook', title: 'Project Hail Mary', subtitle: 'Andy Weir', date: iso(-3, 18), date_type: 'sent', recipient: 'me@kindle.com', image: null },
+    ]),
+    'sensor.leer': sensor('queue', 'none', []),
+  };
+  const hass = { states, language: 'de' };
+  const cards = [
+    ['Neueste (Kacheln, NAS schläft)', { entities: ['sensor.jellyfin_neu'], title: 'Neueste Filme/Folgen' }],
+    ['Nächste (Sonarr+Radarr gemischt)', { entities: ['sensor.sonarr_nachste_folgen', 'sensor.radarr_nachste_filme'], title: 'Nächste Filme/Folgen' }],
+    ['Startseite: Zeilen', { entities: ['sensor.sonarr_nachste_folgen', 'sensor.radarr_nachste_filme'], layout: 'rows', title: '🎬 Demnächst' }],
+    ['Downloads (Zeilen)', { entities: ['sensor.downloads'], layout: 'rows', title: 'Now grabbing' }],
+    ['Läuft gerade', { entities: ['sensor.lauft_gerade'], title: 'Now playing' }],
+    ['Weiterhören / E-Books', { entities: ['sensor.abs_weiterhoren', 'sensor.ebooks_verschickt'], layout: 'rows' }],
+    ['Leer', { entities: ['sensor.leer'], title: 'Now grabbing' }],
+  ];
+  import('/custom_components/nas_hub/frontend/nas-hub-card.js').then(() => {
+    const grid = document.getElementById('grid');
+    for (const [label, config] of cards) {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = `<h3>${label}</h3>`;
+      const card = document.createElement('nas-hub-card');
+      card.setConfig(config);
+      card.hass = hass;
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
+    }
+  });
+</script>
+</body>
+</html>

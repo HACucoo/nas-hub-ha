@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "NAS Hub",
+        "description": "Which service should be added? Each one becomes its own entry and can be reconfigured later.",
+        "menu_options": {
+          "jellyfin": "Jellyfin",
+          "audiobookshelf": "Audiobookshelf",
+          "sonarr": "Sonarr",
+          "radarr": "Radarr",
+          "ebooks": "E-book sending (webhook)"
+        }
+      },
+      "jellyfin": {
+        "title": "Jellyfin",
+        "description": "API key: Jellyfin dashboard → API keys → +.",
+        "data": { "url": "Address (local)", "api_key": "API key", "public_url": "Public address (optional)" },
+        "data_description": {
+          "url": "How Home Assistant reaches the server, e.g. http://nas.local:8096",
+          "public_url": "Used for links in the cards, e.g. https://jellyfin.example.duckdns.org. Empty = local address."
+        }
+      },
+      "audiobookshelf": {
+        "title": "Audiobookshelf",
+        "description": "API key: Audiobookshelf → Settings → API keys. \"Continue listening\" is the progress of the key's user.",
+        "data": { "url": "Address (local)", "api_key": "API key", "public_url": "Public address (optional)" },
+        "data_description": {
+          "url": "How Home Assistant reaches the server, e.g. http://nas.local:13378",
+          "public_url": "Used for links in the cards. Empty = local address."
+        }
+      },
+      "sonarr": {
+        "title": "Sonarr",
+        "description": "API key: Sonarr → Settings → General → Security.",
+        "data": { "url": "Address (local)", "api_key": "API key", "public_url": "Public address (optional)" },
+        "data_description": {
+          "url": "How Home Assistant reaches the server, e.g. http://nas.local:8989",
+          "public_url": "Used for links in the cards. Empty = local address."
+        }
+      },
+      "radarr": {
+        "title": "Radarr",
+        "description": "API key: Radarr → Settings → General → Security.",
+        "data": { "url": "Address (local)", "api_key": "API key", "public_url": "Public address (optional)" },
+        "data_description": {
+          "url": "How Home Assistant reaches the server, e.g. http://nas.local:7878",
+          "public_url": "Used for links in the cards. Empty = local address."
+        }
+      },
+      "ebooks": {
+        "title": "E-book sending",
+        "description": "Your sending script reports each sent book with a POST to\n\n`{webhook_path}`\n\n(on your local Home Assistant address, e.g. http://homeassistant.local:8123{webhook_path}). JSON: `title` (required), `author`, `recipient`, `sent_at`, `cover_base64` or `cover_url`. Only accepted from the local network."
+      },
+      "reconfigure": {
+        "title": "Change {service}",
+        "description": "New address or API key. The key is checked before it is saved.",
+        "data": { "url": "Address (local)", "api_key": "API key", "public_url": "Public address (optional)" }
+      },
+      "reauth_confirm": {
+        "title": "{service}: new API key",
+        "description": "{service} no longer accepts the stored API key.",
+        "data": { "api_key": "API key" }
+      }
+    },
+    "error": {
+      "cannot_connect": "The service did not answer at this address.",
+      "invalid_auth": "The service rejected the API key."
+    },
+    "abort": {
+      "already_configured": "This service is already set up at this address.",
+      "reconfigure_successful": "Saved.",
+      "reauth_successful": "New key saved.",
+      "ebooks_nothing_to_change": "Nothing to change here. Webhook: {webhook_path}"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "item_count": "Items per list",
+          "list_minutes": "Refresh lists every",
+          "live_seconds": "Refresh playing/downloads every",
+          "days_ahead": "Look ahead",
+          "availability_entity": "NAS awake (entity)"
+        },
+        "data_description": {
+          "list_minutes": "Newly added, upcoming, continue listening. The last answer is kept while the NAS sleeps.",
+          "live_seconds": "Only asked while the NAS is awake.",
+          "availability_entity": "While this entity is off/unavailable nothing is requested; when it turns on, everything is refreshed after 90 s. Empty = always ask."
+        }
+      },
+      "ebooks": {
+        "title": "E-book sending",
+        "description": "Webhook: `{webhook_path}`",
+        "data": { "item_count": "Items per list" }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "jellyfin_latest": { "name": "New" },
+      "jellyfin_now_playing": { "name": "Now playing" },
+      "sonarr_upcoming": { "name": "Upcoming episodes" },
+      "sonarr_queue": { "name": "Downloads" },
+      "radarr_upcoming": { "name": "Upcoming movies" },
+      "radarr_queue": { "name": "Downloads" },
+      "abs_new": { "name": "New audiobooks" },
+      "abs_in_progress": { "name": "Continue listening" },
+      "abs_now_playing": { "name": "Now playing" },
+      "ebooks_sent": { "name": "Sent" }
+    },
+    "button": {
+      "refresh": { "name": "Refresh" }
+    }
+  }
+}
