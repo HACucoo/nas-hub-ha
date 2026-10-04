@@ -62,4 +62,4 @@ relative: true            # Today / Tomorrow / 2 days ago
 open_links: false         # tap opens the item in Jellyfin, Sonarr, …
 ```
 
-Everything can be set in the visual card editor. After an update, add a version to the resource URL (`…/nas-hub-card.js?v=0.2.0`) so tablets load the new file.
+Everything can be set in the visual card editor. After an update, add a version to the resource URL (`…/nas-hub-card.js?v=0.2.1`) so tablets load the new file.

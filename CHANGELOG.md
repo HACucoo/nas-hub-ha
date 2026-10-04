@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-04
+
+- Card: paused playback is no longer dimmed — the "Paused" chip says it, the row stays readable.
+
 ## 0.2.0 — 2026-10-04
 
 - Radarr: cinema releases are hidden unless the new option "Show cinema releases" is on.

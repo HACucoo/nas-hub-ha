@@ -206,7 +206,6 @@ class NasHubCard extends HTMLElement {
       rel: this._relative(item, S),
       image: item.image || '',
       link: item.link || '',
-      dim: false,
     };
 
     if (item.episode) view.chips.push({ text: item.episode, accent: true });
@@ -223,7 +222,7 @@ class NasHubCard extends HTMLElement {
       if (item.meta) view.meta.push(item.meta);
       if (item.paused) view.chips.push({ text: S.paused });
       if (item.play_method) view.chips.push({ text: S.play[item.play_method] || item.play_method, warn: item.play_method === 'transcode' });
-      view.dim = !!item.paused;
+      // Paused shows as a chip only — a dimmed row is hard to read on a wall tablet
     } else {
       const date = this._dateLabel(item, lang);
       if (date) view.meta.push({ icon: 'mdi:calendar-blank', text: date });
@@ -263,7 +262,7 @@ class NasHubCard extends HTMLElement {
 
   _tile(v) {
     return `
-      <div class="tile${v.image ? ' has-photo' : ''}${v.dim ? ' dim' : ''}"${v.link ? ` data-link="${esc(v.link)}"` : ''}>
+      <div class="tile${v.image ? ' has-photo' : ''}"${v.link ? ` data-link="${esc(v.link)}"` : ''}>
         ${v.image ? `<div class="bg" style="background-image:url('${esc(v.image)}')"></div>` : ''}
         <div class="body">
           <div class="head">
@@ -284,7 +283,7 @@ class NasHubCard extends HTMLElement {
     // One chip fits a slim row: the episode or status, never a genre
     const chip = v.chips.find(c => !c.genre);
     return `
-      <div class="row${v.image ? ' has-photo' : ''}${v.dim ? ' dim' : ''}"${v.link ? ` data-link="${esc(v.link)}"` : ''}>
+      <div class="row${v.image ? ' has-photo' : ''}"${v.link ? ` data-link="${esc(v.link)}"` : ''}>
         ${v.image ? `<div class="bg" style="background-image:url('${esc(v.image)}')"></div>` : ''}
         <div class="thumb" style="background-color:${v.color}">
           <ha-icon icon="${v.icon}"></ha-icon>
@@ -386,7 +385,6 @@ const CARD_CSS = `
   }
   .has-photo { color: #fff; border-color: rgba(255,255,255,0.10); }
   .tile > :not(.bg), .row > :not(.bg) { position: relative; z-index: 1; }
-  .dim { opacity: 0.65; }
 
   .name { font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .has-photo .name { text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
