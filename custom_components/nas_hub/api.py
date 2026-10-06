@@ -252,12 +252,13 @@ class JellyfinClient(BaseClient):
     def _series(self, item: dict, entry: dict) -> dict:
         """One row per series; tells a new series, new episodes and a re-scan apart.
 
-        * The series itself was added together with its episodes → "new series",
-          with the number of seasons instead of a (capped) episode count.
-        * An existing series whose episodes all got a fresh "added" date (files
-          renamed or moved, library re-scanned) → only the episodes that aired
-          recently are new; without any, it was a back catalogue (old seasons
-          added later) and all of them count.
+        * Many episodes at once, a few of them aired recently → a re-scan (files
+          renamed or moved): only the recently aired ones are new. A whole
+          running series downloaded fresh looks the same and then shows its
+          latest episode — the lesser evil.
+        * Otherwise, the series itself was added together with its episodes →
+          "new series" with the number of seasons, not a (capped) episode count.
+        * Otherwise all of them count (e.g. an old season added later).
         """
         eps = entry["eps"]
         added = _parse_iso(entry["date"])
@@ -272,14 +273,19 @@ class JellyfinClient(BaseClient):
             "progress": None,
             **self._base(item),
         }
-        if added and series_added and abs(added - series_added) <= NEW_SERIES_WINDOW:
-            return {**row, "episode": None, "new_count": None, "new_series": True, "season_count": item.get("ChildCount")}
-
+        # Recently aired episodes among many old ones: a re-scan (Jellyfin may
+        # even re-create the series item when its folder moves), so only the
+        # recent ones are news. Checked first for exactly that reason.
         if len(eps) > 1:
             cutoff = _utc_now() - RECENT_AIRING
             recent = [e for e in eps if (_parse_iso(e[2]) or cutoff) > cutoff]
-            if recent:
-                eps = recent
+            if recent and len(recent) < len(eps):
+                pairs = [(s, e) for s, e, _ in recent]
+                return {**row, "episode": _episode_label(pairs), "new_count": len(pairs)}
+
+        if len(eps) > 1 and added and series_added and abs(added - series_added) <= NEW_SERIES_WINDOW:
+            return {**row, "episode": None, "new_count": None, "new_series": True, "season_count": item.get("ChildCount")}
+
         pairs = [(s, e) for s, e, _ in eps]
         return {**row, "episode": _episode_label(pairs), "new_count": len(pairs)}
 

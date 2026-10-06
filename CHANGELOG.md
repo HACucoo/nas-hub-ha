@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 — 2026-10-06
+
+- Jellyfin "new": the re-scan check comes before the new-series check — Jellyfin re-creates the series item when its folder moves, which made a re-scanned series look brand new.
+
 ## 0.3.1 — 2026-10-06
 
 - Jellyfin "new": a series added as a whole shows "New series · 16 seasons" instead of a capped episode count.
