@@ -54,6 +54,29 @@ def _ms_to_iso(ms: Any) -> str | None:
         return None
 
 
+def _parse_iso(value: Any) -> datetime | None:
+    """Jellyfin writes seven fractional digits; Python takes six."""
+    if not value or not isinstance(value, str):
+        return None
+    text = value.replace("Z", "+00:00")
+    if "." in text:
+        head, _, tail = text.partition(".")
+        digits = "".join(ch for ch in tail if ch.isdigit())
+        zone = tail[len(digits):]
+        text = f"{head}.{digits[:6]}{zone}"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+# A series added within this span of its newest episode came in as a whole
+NEW_SERIES_WINDOW = timedelta(days=1)
+# Episodes that aired this recently are new even if a re-scan touched the rest
+RECENT_AIRING = timedelta(days=60)
+
+
 def _rating(value: Any) -> float | None:
     try:
         rating = round(float(value), 1)
@@ -167,13 +190,15 @@ class JellyfinClient(BaseClient):
                 "Limit": count,
                 "Fields": fields,
             }),
+            # Generous: a whole series (or a re-scanned one) easily brings
+            # dozens of episodes and must not push every other series out
             self._get("/Items", {
                 "Recursive": "true",
                 "IncludeItemTypes": "Episode",
                 "SortBy": "DateCreated",
                 "SortOrder": "Descending",
-                "Limit": count * 6,
-                "Fields": "DateCreated",
+                "Limit": count * 25,
+                "Fields": "DateCreated,PremiereDate",
                 "EnableImages": "false",
             }),
         )
@@ -187,10 +212,10 @@ class JellyfinClient(BaseClient):
             if not sid:
                 continue
             entry = series.setdefault(sid, {"date": ep.get("DateCreated"), "eps": []})
-            entry["eps"].append((ep.get("ParentIndexNumber"), ep.get("IndexNumber")))
+            entry["eps"].append((ep.get("ParentIndexNumber"), ep.get("IndexNumber"), ep.get("PremiereDate")))
         series_ids = list(series)[:count]
         if series_ids:
-            details = await self._get("/Items", {"Ids": ",".join(series_ids), "Fields": fields})
+            details = await self._get("/Items", {"Ids": ",".join(series_ids), "Fields": fields + ",ChildCount"})
             for show in details.get("Items", []):
                 entry = series.get(show.get("Id"))
                 if entry:
@@ -225,18 +250,38 @@ class JellyfinClient(BaseClient):
         }
 
     def _series(self, item: dict, entry: dict) -> dict:
-        return {
+        """One row per series; tells a new series, new episodes and a re-scan apart.
+
+        * The series itself was added together with its episodes → "new series",
+          with the number of seasons instead of a (capped) episode count.
+        * An existing series whose episodes all got a fresh "added" date (files
+          renamed or moved, library re-scanned) → only the episodes that aired
+          recently are new; without any, it was a back catalogue (old seasons
+          added later) and all of them count.
+        """
+        eps = entry["eps"]
+        added = _parse_iso(entry["date"])
+        series_added = _parse_iso(item.get("DateCreated"))
+        row = {
             "id": f"jf-{item['Id']}",
             "kind": "series",
             "title": item.get("Name"),
             "subtitle": None,
-            "episode": _episode_label(entry["eps"]),
-            "new_count": len(entry["eps"]),
             "date": entry["date"],
             "date_type": "added",
             "progress": None,
             **self._base(item),
         }
+        if added and series_added and abs(added - series_added) <= NEW_SERIES_WINDOW:
+            return {**row, "episode": None, "new_count": None, "new_series": True, "season_count": item.get("ChildCount")}
+
+        if len(eps) > 1:
+            cutoff = _utc_now() - RECENT_AIRING
+            recent = [e for e in eps if (_parse_iso(e[2]) or cutoff) > cutoff]
+            if recent:
+                eps = recent
+        pairs = [(s, e) for s, e, _ in eps]
+        return {**row, "episode": _episode_label(pairs), "new_count": len(pairs)}
 
     async def fetch_live(self) -> dict[str, list]:
         sessions = await self._get("/Sessions", {"activeWithinSeconds": 960})

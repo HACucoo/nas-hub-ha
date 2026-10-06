@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-06
+
+- Jellyfin "new": a series added as a whole shows "New series · 16 seasons" instead of a capped episode count.
+- A re-scan (files renamed or moved, every episode with a fresh "added" date) no longer reads as dozens of new episodes: for an existing series only recently aired episodes count; an old season added later still counts in full.
+- More episodes are fetched (25 per list entry) so one big import cannot push the other series out of the list.
+
 ## 0.3.0 — 2026-10-06
 
 - New service **Seerr**: sensor with the latest requests and their state (card chip: available, partly here, processing, awaiting approval, declined).

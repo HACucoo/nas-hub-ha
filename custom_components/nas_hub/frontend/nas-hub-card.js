@@ -29,6 +29,7 @@ const STRINGS = {
     today: 'Heute', tomorrow: 'Morgen', yesterday: 'Gestern',
     inDays: n => `in ${n} Tagen`, daysAgo: n => `vor ${n} Tagen`,
     newEpisodes: n => `${n} neue Folgen`, episodes: n => `${n} Folgen`,
+    newSeries: n => (n ? `Neue Serie · ${n} ${n === 1 ? 'Staffel' : 'Staffeln'}` : 'Neue Serie'),
     left: t => `noch ${t}`,
     status: { downloading: 'lädt', queued: 'wartet', paused: 'pausiert', importpending: 'Import wartet', importing: 'importiert', imported: 'fertig', completed: 'fertig', delay: 'verzögert', warning: 'Warnung', failed: 'fehlgeschlagen', failedpending: 'fehlgeschlagen' },
     play: { direct: 'Direkt', audio: 'Ton umgewandelt', transcode: 'Transkodiert' },
@@ -46,6 +47,7 @@ const STRINGS = {
     today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday',
     inDays: n => `in ${n} days`, daysAgo: n => `${n} days ago`,
     newEpisodes: n => `${n} new episodes`, episodes: n => `${n} episodes`,
+    newSeries: n => (n ? `New series · ${n} ${n === 1 ? 'season' : 'seasons'}` : 'New series'),
     left: t => `${t} left`,
     status: { downloading: 'downloading', queued: 'queued', paused: 'paused', importpending: 'import pending', importing: 'importing', imported: 'done', completed: 'done', delay: 'delayed', warning: 'warning', failed: 'failed', failedpending: 'failed' },
     play: { direct: 'Direct', audio: 'Audio converted', transcode: 'Transcoding' },
@@ -210,7 +212,8 @@ class NasHubCard extends HTMLElement {
       link: item.link || '',
     };
 
-    if (item.episode) view.chips.push({ text: item.episode, accent: true });
+    if (item.new_series) view.chips.push({ text: S.newSeries(item.season_count), accent: true });
+    else if (item.episode) view.chips.push({ text: item.episode, accent: true });
     else if (item.new_count > 1) {
       view.chips.push({ text: item.kind === 'series' ? S.newEpisodes(item.new_count) : S.episodes(item.new_count), accent: true });
     }

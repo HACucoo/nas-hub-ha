@@ -1,7 +1,7 @@
 {
   "domain": "nas_hub",
   "name": "NAS Hub",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "documentation": "https://github.com/HACucoo/nas-hub-ha",
   "issue_tracker": "https://github.com/HACucoo/nas-hub-ha/issues",
   "codeowners": ["@HACucoo"],
