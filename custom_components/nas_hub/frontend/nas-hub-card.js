@@ -35,7 +35,8 @@ const STRINGS = {
     paused: 'Pause',
     sentTo: r => `an ${r}`,
     readBy: n => `gelesen von ${n}`,
-    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', other: 'Noch nichts da' },
+    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', requests: 'Keine Wünsche', other: 'Noch nichts da' },
+    request: { available: 'Verfügbar', partial: 'Teilweise da', processing: 'Wird besorgt', pending: 'Wartet auf Freigabe', declined: 'Abgelehnt' },
     stand: t => `Stand ${t}`, asleep: 'NAS schläft', unreachable: 'nicht erreichbar',
     noEntities: 'Bitte im Karteneditor mindestens einen NAS-Hub-Sensor wählen.',
   },
@@ -51,7 +52,8 @@ const STRINGS = {
     paused: 'Paused',
     sentTo: r => `to ${r}`,
     readBy: n => `read by ${n}`,
-    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', other: 'Nothing here yet' },
+    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', requests: 'No requests', other: 'Nothing here yet' },
+    request: { available: 'Available', partial: 'Partly here', processing: 'Processing', pending: 'Awaiting approval', declined: 'Declined' },
     stand: t => `as of ${t}`, asleep: 'NAS asleep', unreachable: 'unreachable',
     noEntities: 'Pick at least one NAS Hub sensor in the card editor.',
   },
@@ -227,6 +229,7 @@ class NasHubCard extends HTMLElement {
       const date = this._dateLabel(item, lang);
       if (date) view.meta.push({ icon: 'mdi:calendar-blank', text: date });
       if (S.dateType[item.date_type]) view.chips.unshift({ text: S.dateType[item.date_type] });
+      if (item.request_status) view.chips.unshift({ text: S.request[item.request_status] || item.request_status, accent: item.request_status === 'available', warn: item.request_status === 'declined' });
       if (item.kind === 'ebook' && item.recipient) view.meta.push(S.sentTo(item.recipient));
       else if (item.meta) view.meta.push(item.meta);
       if (item.kind === 'audiobook' && item.narrator && !item.series) view.meta.push(S.readBy(item.narrator));

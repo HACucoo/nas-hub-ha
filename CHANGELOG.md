@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-10-06
+
+- New service **Seerr**: sensor with the latest requests and their state (card chip: available, partly here, processing, awaiting approval, declined).
+- Notifies the requester when a wish has arrived — movies once, series once per new season, only requests at least 7 days old (option). Seerr users are mapped to notify services in the options; every announcement fires `nas_hub_request_available`.
+- The cache file now keeps additional keys next to the lists (Seerr's bookkeeping).
+
 ## 0.2.1 — 2026-10-04
 
 - Card: paused playback is no longer dimmed — the "Paused" chip says it, the row stays readable.

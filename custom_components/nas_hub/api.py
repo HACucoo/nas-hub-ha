@@ -616,9 +616,189 @@ class AudiobookshelfClient(BaseClient):
         return {"now_playing": items}
 
 
+# ── Seerr ────────────────────────────────────────────────────────────────────
+
+# Seerr's media states (Overseerr/Jellyseerr share them)
+MEDIA_PENDING = 2
+MEDIA_PROCESSING = 3
+MEDIA_PARTIAL = 4
+MEDIA_AVAILABLE = 5
+REQUEST_PENDING = 1
+REQUEST_DECLINED = 3
+
+TMDB_IMAGE = "https://image.tmdb.org/t/p"
+
+
+class SeerrClient(BaseClient):
+    """Seerr: the wishes and which of them have arrived.
+
+    The request list only carries ids and states; titles, artwork and the
+    state of every season come from the movie/tv pages. Movie titles never
+    change and are kept; series are asked again each time, because new
+    seasons are exactly what the notifications are about.
+    """
+
+    list_keys = ("requests",)
+    language = "en"
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.movies: dict[int, dict] = {}
+        # Filled by fetch_lists for the notifier: normalised requests and series pages
+        self.requests: list[dict] = []
+        self.series: dict[int, dict] = {}
+
+    @property
+    def auth_headers(self) -> dict[str, str]:
+        return {"X-Api-Key": self._api_key}
+
+    async def validate(self) -> None:
+        await self._get("/api/v1/auth/me")
+
+    async def fetch_users(self) -> list[dict]:
+        data = await self._get("/api/v1/user", {"take": 100, "skip": 0})
+        return [
+            {"id": u.get("id"), "name": u.get("displayName") or u.get("jellyfinUsername") or u.get("username") or u.get("email")}
+            for u in (data or {}).get("results", [])
+            if u.get("id") is not None
+        ]
+
+    async def _fetch_requests(self) -> list[dict]:
+        requests: list[dict] = []
+        skip, take = 0, 100
+        while True:
+            data = await self._get("/api/v1/request", {"take": take, "skip": skip, "filter": "all", "sort": "added"})
+            page = (data or {}).get("results", [])
+            for req in page:
+                media = req.get("media") or {}
+                user = req.get("requestedBy") or {}
+                if not media.get("tmdbId"):
+                    continue
+                requests.append({
+                    "id": req.get("id"),
+                    "type": "tv" if (req.get("type") or media.get("mediaType")) == "tv" else "movie",
+                    "status": req.get("status"),
+                    "created": req.get("createdAt"),
+                    "tmdb": media["tmdbId"],
+                    "media_id": media.get("id"),
+                    "media_status": media.get("status"),
+                    "media_url": media.get("mediaUrl"),
+                    "seasons": [s.get("seasonNumber") for s in req.get("seasons") or []],
+                    "user_id": user.get("id"),
+                    "user_name": user.get("displayName") or user.get("jellyfinUsername") or user.get("username"),
+                })
+            info = (data or {}).get("pageInfo") or {}
+            skip += take
+            if not page or skip >= (info.get("results") or 0) or skip >= 1000:
+                return requests
+
+    @staticmethod
+    def _art(page: dict) -> list[dict]:
+        sources = []
+        if page.get("backdropPath"):
+            sources.append({"url": f"{TMDB_IMAGE}/w780{page['backdropPath']}", "auth": False})
+        if page.get("posterPath"):
+            sources.append({"url": f"{TMDB_IMAGE}/w500{page['posterPath']}", "auth": False})
+        return sources
+
+    async def movie(self, tmdb: int) -> dict:
+        if tmdb not in self.movies:
+            page = await self._get(f"/api/v1/movie/{tmdb}", {"language": self.language})
+            self.movies[tmdb] = {
+                "title": page.get("title") or page.get("originalTitle"),
+                "poster": f"{TMDB_IMAGE}/w500{page['posterPath']}" if page.get("posterPath") else None,
+                "art": self._art(page),
+                "genres": [g.get("name") for g in page.get("genres") or [] if g.get("name")][:4],
+                "rating": _rating(page.get("voteAverage")),
+            }
+        return self.movies[tmdb]
+
+    async def tv(self, tmdb: int) -> dict:
+        page = await self._get(f"/api/v1/tv/{tmdb}", {"language": self.language})
+        info = page.get("mediaInfo") or {}
+        return {
+            "title": page.get("name") or page.get("originalName"),
+            "poster": f"{TMDB_IMAGE}/w500{page['posterPath']}" if page.get("posterPath") else None,
+            "art": self._art(page),
+            "genres": [g.get("name") for g in page.get("genres") or [] if g.get("name")][:4],
+            "rating": _rating(page.get("voteAverage")),
+            "media_url": info.get("mediaUrl"),
+            # Season 0 are the specials — no "new season" to announce
+            "seasons": {
+                int(s["seasonNumber"]): s.get("status")
+                for s in info.get("seasons") or []
+                if s.get("seasonNumber")
+            },
+        }
+
+    async def fetch_lists(self, count: int, days_ahead: int) -> dict[str, list]:
+        requests = await self._fetch_requests()
+        wanted = [r for r in requests if r["status"] != REQUEST_DECLINED]
+        series_ids = list(dict.fromkeys(r["tmdb"] for r in wanted if r["type"] == "tv"))
+        limit = asyncio.Semaphore(4)
+
+        async def _tv(tmdb: int) -> tuple[int, dict | None]:
+            async with limit:
+                try:
+                    return tmdb, await self.tv(tmdb)
+                except AuthError:
+                    raise
+                except ServiceError as err:
+                    _LOGGER.debug("Seerr series %s: %s", tmdb, err)
+                    return tmdb, None
+
+        series = {tmdb: page for tmdb, page in await asyncio.gather(*(_tv(t) for t in series_ids)) if page}
+
+        newest = sorted(requests, key=lambda r: r["created"] or "", reverse=True)[:count]
+        items = []
+        for req in newest:
+            if req["type"] == "tv":
+                page = series.get(req["tmdb"]) or {}
+            else:
+                try:
+                    page = await self.movie(req["tmdb"])
+                except AuthError:
+                    raise
+                except ServiceError:
+                    page = {}
+            items.append({
+                "id": f"seerr-{req['id']}",
+                "kind": "series" if req["type"] == "tv" else "movie",
+                "title": page.get("title") or f"TMDB {req['tmdb']}",
+                "subtitle": None,
+                "episode": None,
+                "date": req["created"],
+                "date_type": "requested",
+                "meta": req["user_name"],
+                "request_status": self.request_state(req),
+                "rating": page.get("rating"),
+                "genres": page.get("genres") or [],
+                "progress": None,
+                "link": f"{self.public_url}/{req['type']}/{req['tmdb']}",
+                "image_src": page.get("art") or [],
+            })
+
+        self.requests = requests
+        self.series = series
+        return {"requests": items}
+
+    @staticmethod
+    def request_state(req: dict) -> str:
+        if req["status"] == REQUEST_DECLINED:
+            return "declined"
+        if req["media_status"] == MEDIA_AVAILABLE:
+            return "available"
+        if req["media_status"] == MEDIA_PARTIAL:
+            return "partial"
+        if req["status"] == REQUEST_PENDING:
+            return "pending"
+        return "processing"
+
+
 CLIENTS: dict[str, type[BaseClient]] = {
     "jellyfin": JellyfinClient,
     "audiobookshelf": AudiobookshelfClient,
     "sonarr": SonarrClient,
     "radarr": RadarrClient,
+    "seerr": SeerrClient,
 }

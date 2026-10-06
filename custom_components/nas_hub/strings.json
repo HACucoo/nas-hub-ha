@@ -9,6 +9,7 @@
           "audiobookshelf": "Audiobookshelf",
           "sonarr": "Sonarr",
           "radarr": "Radarr",
+          "seerr": "Seerr (requests)",
           "ebooks": "E-book sending (webhook)"
         }
       },
@@ -83,6 +84,19 @@
         "data": {
           "api_key": "API key"
         }
+      },
+      "seerr": {
+        "title": "Seerr",
+        "description": "API key: Seerr → Settings → General → API Key.",
+        "data": {
+          "url": "Address (local)",
+          "api_key": "API key",
+          "public_url": "Public address (optional)"
+        },
+        "data_description": {
+          "url": "How Home Assistant reaches the server, e.g. http://nas.local:5055",
+          "public_url": "For links in cards and notifications. Empty = local address."
+        }
       }
     },
     "error": {
@@ -121,6 +135,20 @@
         "data": {
           "item_count": "Items per list"
         }
+      },
+      "seerr": {
+        "title": "Seerr",
+        "description": "Who gets a push when their request has arrived? Map each Seerr user to a notify service (empty = no push, only the `nas_hub_request_available` event).\n\nMovies are announced once, series once per new season – not for every further episode.\n\nSeerr users: {users}",
+        "data": {
+          "item_count": "Items per list",
+          "list_minutes": "Fetch requests every",
+          "availability_entity": "NAS awake (entity)",
+          "min_request_days": "Only requests at least this old"
+        },
+        "data_description": {
+          "min_request_days": "Whoever asked yesterday is still waiting for it anyway. 0 = announce every request.",
+          "availability_entity": "While this entity is off/unavailable nothing is fetched. Empty = always fetch."
+        }
       }
     }
   },
@@ -155,6 +183,9 @@
       },
       "ebooks_sent": {
         "name": "Sent"
+      },
+      "seerr_requests": {
+        "name": "Requests"
       }
     },
     "button": {

@@ -9,6 +9,7 @@
           "audiobookshelf": "Audiobookshelf",
           "sonarr": "Sonarr",
           "radarr": "Radarr",
+          "seerr": "Seerr (Wünsche)",
           "ebooks": "E-Book-Versand (Webhook)"
         }
       },
@@ -83,6 +84,19 @@
         "data": {
           "api_key": "API-Schlüssel"
         }
+      },
+      "seerr": {
+        "title": "Seerr",
+        "description": "API-Schlüssel: Seerr → Einstellungen → Allgemein → API-Schlüssel.",
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
+        "data_description": {
+          "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:5055",
+          "public_url": "Für Links in den Karten und Benachrichtigungen. Leer = lokale Adresse."
+        }
       }
     },
     "error": {
@@ -121,6 +135,20 @@
         "data": {
           "item_count": "Einträge pro Liste"
         }
+      },
+      "seerr": {
+        "title": "Seerr",
+        "description": "Wer bekommt eine Push, wenn sein Wunsch da ist? Ordne jedem Seerr-Benutzer einen Benachrichtigungsdienst zu (leer = keine Push, nur das Ereignis `nas_hub_request_available`).\n\nFilme melden sich einmal, Serien einmal je neuer Staffel – nicht für jede weitere Folge.\n\nSeerr-Benutzer: {users}",
+        "data": {
+          "item_count": "Einträge pro Liste",
+          "list_minutes": "Wünsche abrufen alle",
+          "availability_entity": "NAS wach (Entität)",
+          "min_request_days": "Nur Wünsche, die mindestens so alt sind"
+        },
+        "data_description": {
+          "min_request_days": "Wer erst gestern gewünscht hat, wartet ohnehin noch darauf. 0 = jeden Wunsch melden.",
+          "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt. Leer = immer abfragen."
+        }
       }
     }
   },
@@ -155,6 +183,9 @@
       },
       "ebooks_sent": {
         "name": "Verschickt"
+      },
+      "seerr_requests": {
+        "name": "Wünsche"
       }
     },
     "button": {

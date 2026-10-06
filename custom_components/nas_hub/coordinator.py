@@ -25,7 +25,7 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .api import CLIENTS, AuthError, BaseClient, ServiceError
+from .api import CLIENTS, AuthError, BaseClient, SeerrClient, ServiceError
 from .const import (
     ASLEEP_STATES,
     CONF_API_KEY,
@@ -46,11 +46,13 @@ from .const import (
     OPT_SHOW_CINEMA,
     SERVICE_EBOOKS,
     SERVICE_RADARR,
+    SERVICE_SEERR,
     STORAGE_KEY,
     STORAGE_VERSION,
     WAKE_REFRESH_DELAY,
 )
 from .images import ImageCache
+from .seerr_notify import RequestNotifier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +81,9 @@ class NasHub:
             )
             if self.service == SERVICE_RADARR:
                 self.client.show_cinema = bool(entry.options.get(OPT_SHOW_CINEMA, False))
+            if isinstance(self.client, SeerrClient):
+                self.client.language = (hass.config.language or "en").split("-")[0]
+        self.notifier: RequestNotifier | None = RequestNotifier(self) if self.service == SERVICE_SEERR else None
         self.stored: dict[str, Any] = {}
         self.lists = ListCoordinator(hass, entry, self)
         self.live: LiveCoordinator | None = (
@@ -159,6 +164,13 @@ class NasHub:
                 keep.update(item["image"] for item in entries if item.get("image"))
         await self.images.prune(keep)
 
+    async def async_save(self, lists: dict[str, list] | None = None) -> None:
+        """Write the cache; other keys in it (Seerr's bookkeeping) are kept."""
+        if lists is not None:
+            self.stored["lists"] = lists
+            self.stored["updated"] = self.lists.updated
+        await self.store.async_save(self.stored)
+
     # ── e-books arrive by webhook ──
 
     async def async_add_ebook(self, item: dict) -> None:
@@ -166,7 +178,7 @@ class NasHub:
         lists = {"sent": sent[:EBOOK_HISTORY]}
         await self.images.resolve(self.session, {}, lists)
         self.lists.mark_success()
-        await self.store.async_save({"lists": lists, "updated": self.lists.updated})
+        await self.async_save(lists)
         self.lists.async_set_updated_data(lists)
         await self.async_prune_images()
 
@@ -234,9 +246,14 @@ class ListCoordinator(_HubCoordinator):
             return self._cached()
         await hub.images.resolve(hub.session, hub.client.auth_headers, lists)
         self.mark_success()
-        await hub.store.async_save({"lists": lists, "updated": self.updated})
+        await hub.async_save(lists)
         self.data = lists  # so the pruning below sees the new lists
         await hub.async_prune_images()
+        if hub.notifier and isinstance(hub.client, SeerrClient):
+            try:
+                await hub.notifier.async_check(hub.client)
+            except ServiceError as err:
+                _LOGGER.debug("Seerr check postponed: %s", err)
         return lists
 
 

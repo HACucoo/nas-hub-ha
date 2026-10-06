@@ -15,12 +15,14 @@ SERVICE_AUDIOBOOKSHELF = "audiobookshelf"
 SERVICE_SONARR = "sonarr"
 SERVICE_RADARR = "radarr"
 SERVICE_EBOOKS = "ebooks"
+SERVICE_SEERR = "seerr"
 
 SERVICE_NAMES = {
     SERVICE_JELLYFIN: "Jellyfin",
     SERVICE_AUDIOBOOKSHELF: "Audiobookshelf",
     SERVICE_SONARR: "Sonarr",
     SERVICE_RADARR: "Radarr",
+    SERVICE_SEERR: "Seerr",
     SERVICE_EBOOKS: "E-Book-Versand",
 }
 
@@ -29,6 +31,7 @@ DEFAULT_URLS = {
     SERVICE_AUDIOBOOKSHELF: "http://nas.local:13378",
     SERVICE_SONARR: "http://nas.local:8989",
     SERVICE_RADARR: "http://nas.local:7878",
+    SERVICE_SEERR: "http://nas.local:5055",
 }
 
 # Options
@@ -38,6 +41,10 @@ OPT_ITEM_COUNT = "item_count"
 OPT_DAYS_AHEAD = "days_ahead"
 OPT_AVAILABILITY_ENTITY = "availability_entity"
 OPT_SHOW_CINEMA = "show_cinema"
+# Seerr: who gets told when a wish is fulfilled
+OPT_NOTIFY_MAP = "notify_map"  # {seerr user id (str): notify service name}
+OPT_MIN_REQUEST_DAYS = "min_request_days"
+DEFAULT_MIN_REQUEST_DAYS = 7
 
 DEFAULT_LIST_MINUTES = 60
 DEFAULT_LIVE_SECONDS = 60
@@ -63,5 +70,6 @@ FRONTEND_URL_BASE = f"/{DOMAIN}_frontend"
 
 EBOOK_HISTORY = 30
 EVENT_EBOOK_SENT = f"{DOMAIN}_ebook_sent"
+EVENT_REQUEST_AVAILABLE = f"{DOMAIN}_request_available"
 
 REQUEST_TIMEOUT = 15

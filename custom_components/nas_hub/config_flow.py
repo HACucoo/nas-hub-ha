@@ -18,12 +18,16 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
 )
 
-from .api import CLIENTS, AuthError, ServiceError
+from .api import CLIENTS, AuthError, SeerrClient, ServiceError
 from .const import (
     CONF_API_KEY,
     CONF_PUBLIC_URL,
@@ -34,6 +38,7 @@ from .const import (
     DEFAULT_ITEM_COUNT,
     DEFAULT_LIST_MINUTES,
     DEFAULT_LIVE_SECONDS,
+    DEFAULT_MIN_REQUEST_DAYS,
     DEFAULT_URLS,
     DOMAIN,
     OPT_AVAILABILITY_ENTITY,
@@ -41,12 +46,15 @@ from .const import (
     OPT_ITEM_COUNT,
     OPT_LIST_MINUTES,
     OPT_LIVE_SECONDS,
+    OPT_MIN_REQUEST_DAYS,
+    OPT_NOTIFY_MAP,
     OPT_SHOW_CINEMA,
     SERVICE_AUDIOBOOKSHELF,
     SERVICE_EBOOKS,
     SERVICE_JELLYFIN,
     SERVICE_NAMES,
     SERVICE_RADARR,
+    SERVICE_SEERR,
     SERVICE_SONARR,
 )
 
@@ -96,7 +104,7 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="user",
-            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_EBOOKS],
+            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_SEERR, SERVICE_EBOOKS],
         )
 
     async def _service_step(self, service: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
@@ -128,6 +136,9 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_radarr(self, user_input=None) -> ConfigFlowResult:
         return await self._service_step(SERVICE_RADARR, user_input)
+
+    async def async_step_seerr(self, user_input=None) -> ConfigFlowResult:
+        return await self._service_step(SERVICE_SEERR, user_input)
 
     async def async_step_ebooks(self, user_input=None) -> ConfigFlowResult:
         """No server to ask: the sending script reports to a webhook."""
@@ -207,21 +218,57 @@ def _number(minimum: int, maximum: int, step: int = 1, unit: str | None = None) 
 
 
 class NasHubOptionsFlow(OptionsFlow):
-    """Intervals, list length, look-ahead and the entity that tells if the NAS sleeps."""
+    """Intervals, list length, look-ahead and the entity that tells if the NAS sleeps.
+
+    Seerr additionally maps each Seerr user to a notify service. The users are
+    asked for live, so their names become the field labels ("Name (#id)").
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._users: list[dict] | None = None
+
+    async def _seerr_users(self) -> list[dict]:
+        if self._users is None:
+            data = self.config_entry.data
+            client = SeerrClient(async_get_clientsession(self.hass), data[CONF_URL], data[CONF_API_KEY])
+            try:
+                self._users = await client.fetch_users()
+            except ServiceError:
+                self._users = []
+        return self._users
+
+    @staticmethod
+    def _user_field(user: dict) -> str:
+        return f"{user['name']} (#{user['id']})"
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         service = self.config_entry.data[CONF_SERVICE]
+        opts = self.config_entry.options
+        users = await self._seerr_users() if service == SERVICE_SEERR else []
+
         if user_input is not None:
             data = {k: int(v) if isinstance(v, float) else v for k, v in user_input.items()}
+            if service == SERVICE_SEERR:
+                if users:
+                    mapping = {}
+                    for user in users:
+                        target = data.pop(self._user_field(user), None)
+                        if target:
+                            mapping[str(user["id"])] = target
+                    data[OPT_NOTIFY_MAP] = mapping
+                else:
+                    # Seerr unreachable: keep who was mapped before
+                    data[OPT_NOTIFY_MAP] = opts.get(OPT_NOTIFY_MAP, {})
             return self.async_create_entry(title="", data=data)
 
-        opts = self.config_entry.options
         schema: dict[Any, Any] = {
             vol.Required(OPT_ITEM_COUNT, default=opts.get(OPT_ITEM_COUNT, DEFAULT_ITEM_COUNT)): _number(1, 30),
         }
         if service != SERVICE_EBOOKS:
             schema[vol.Required(OPT_LIST_MINUTES, default=opts.get(OPT_LIST_MINUTES, DEFAULT_LIST_MINUTES))] = _number(5, 1440, unit="min")
-            schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
+            if service != SERVICE_SEERR:
+                schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
             if service in DEFAULT_DAYS_AHEAD:
                 schema[vol.Required(OPT_DAYS_AHEAD, default=opts.get(OPT_DAYS_AHEAD, DEFAULT_DAYS_AHEAD[service]))] = _number(1, 365, unit="d")
             if service == SERVICE_RADARR:
@@ -232,13 +279,37 @@ class NasHubOptionsFlow(OptionsFlow):
             )] = EntitySelector(EntitySelectorConfig())
 
         placeholders = {}
+        step_id = "init"
         if service == SERVICE_EBOOKS:
+            step_id = "ebooks"
             placeholders["webhook_path"] = async_generate_path(self.config_entry.data[CONF_WEBHOOK_ID])
+        elif service == SERVICE_SEERR:
+            step_id = "seerr"
+            schema[vol.Required(
+                OPT_MIN_REQUEST_DAYS, default=opts.get(OPT_MIN_REQUEST_DAYS, DEFAULT_MIN_REQUEST_DAYS)
+            )] = _number(0, 90, unit="d")
+            notify = sorted(self.hass.services.async_services_for_domain("notify"))
+            selector = SelectSelector(SelectSelectorConfig(
+                options=[SelectOptionDict(value=name, label=f"notify.{name}") for name in notify],
+                mode=SelectSelectorMode.DROPDOWN,
+            ))
+            mapping = opts.get(OPT_NOTIFY_MAP, {})
+            for user in users:
+                schema[vol.Optional(
+                    self._user_field(user),
+                    description={"suggested_value": mapping.get(str(user["id"]))},
+                )] = selector
+            placeholders["users"] = (
+                ", ".join(u["name"] for u in users) if users else "– (Seerr nicht erreichbar / not reachable)"
+            )
         return self.async_show_form(
-            step_id="init" if service != SERVICE_EBOOKS else "ebooks",
+            step_id=step_id,
             data_schema=vol.Schema(schema),
             description_placeholders=placeholders,
         )
+
+    async def async_step_seerr(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return await self.async_step_init(user_input)
 
     async def async_step_ebooks(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return await self.async_step_init(user_input)

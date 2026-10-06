@@ -19,6 +19,7 @@ from .const import (
     SERVICE_JELLYFIN,
     SERVICE_NAMES,
     SERVICE_RADARR,
+    SERVICE_SEERR,
     SERVICE_SONARR,
 )
 from .coordinator import NasHub, _HubCoordinator
@@ -49,6 +50,9 @@ SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
         NasHubSensorDescription(key="new", translation_key="abs_new", list_key="new"),
         NasHubSensorDescription(key="in_progress", translation_key="abs_in_progress", list_key="in_progress"),
         NasHubSensorDescription(key="now_playing", translation_key="abs_now_playing", list_key="now_playing", live=True, order="none"),
+    ),
+    SERVICE_SEERR: (
+        NasHubSensorDescription(key="requests", translation_key="seerr_requests", list_key="requests"),
     ),
     SERVICE_EBOOKS: (
         NasHubSensorDescription(key="sent", translation_key="ebooks_sent", list_key="sent"),

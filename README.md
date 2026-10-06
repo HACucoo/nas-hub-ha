@@ -8,6 +8,7 @@ What is new, next and running on the media services of a home NAS — as sensors
 | Sonarr | upcoming episodes (a season dropped at once is one row) | download queue |
 | Radarr | upcoming releases (digital, disc, cinema) | download queue |
 | Audiobookshelf | new audiobooks, continue listening | open listening sessions |
+| Seerr | latest requests with their state; notifies the requester when a wish arrives | — |
 | E-book sending | books your own script sent, reported by webhook | — |
 
 ## How it behaves while the NAS sleeps
@@ -28,6 +29,17 @@ Each service becomes a device with its sensors and a **Refresh** button (asks ri
 ### Sensors
 
 The items are in the `items` attribute (not written to the recorder). The state is the number of items for live lists and the title of the first item for the others, so an automation can react to "something new arrived". Further attributes: `updated`, `stale`, `asleep`, `count`, `list`, `order`.
+
+### Seerr: "your wish has arrived"
+
+**Configure** on the Seerr entry lists every Seerr user; map each to a notify service (e.g. `notify.mobile_app_…`). Then:
+
+- a **movie** is announced once, when Seerr reports it available;
+- a **series** is announced once per **new season** — when its first episodes are there, not for every further episode;
+- only requests at least **7 days** old (option) — whoever asked yesterday is still waiting for it anyway;
+- media seen for the first time (first run, or a season that was already there) is remembered, never announced.
+
+Each announcement also fires `nas_hub_request_available` with `title`, `media_type`, `seasons`, `seerr_user`, `notify_service`, `requested_at`, `link`, `image`, `message_title` and `message` — for your own automations, or instead of the built-in push (leave the user unmapped).
 
 ### E-book webhook
 
