@@ -10,7 +10,7 @@
           "sonarr": "Sonarr",
           "radarr": "Radarr",
           "seerr": "Seerr (Wünsche)",
-          "ebooks": "E-Book-Versand (Webhook)"
+          "ebooks": "E-Book-Versand (ebook-sender)"
         }
       },
       "jellyfin": {
@@ -67,7 +67,15 @@
       },
       "ebooks": {
         "title": "E-Book-Versand",
-        "description": "Dein Versand-Skript meldet jedes verschickte Buch per POST an\n\n`{webhook_path}`\n\n(an der lokalen Home-Assistant-Adresse, z. B. http://homeassistant.local:8123{webhook_path}). JSON: `title` (Pflicht), `author`, `recipient`, `sent_at`, `cover_base64` oder `cover_url`. Wird nur aus dem lokalen Netz angenommen."
+        "description": "Der ebook-sender-Container auf der NAS: seine Webadresse, z. B. http://192.168.1.10:8095. Er läuft ohne Login, deshalb gibt es keinen Schlüssel.",
+        "data": {
+          "url": "Adresse (lokal)",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
+        "data_description": {
+          "url": "Wie Home Assistant den Container erreicht",
+          "public_url": "Für Links in den Karten. Leer = lokale Adresse."
+        }
       },
       "reconfigure": {
         "title": "{service} ändern",
@@ -106,8 +114,7 @@
     "abort": {
       "already_configured": "Dieser Dienst ist unter dieser Adresse schon eingerichtet.",
       "reconfigure_successful": "Gespeichert.",
-      "reauth_successful": "Neuer Schlüssel gespeichert.",
-      "ebooks_nothing_to_change": "Hier gibt es nichts zu ändern. Webhook: {webhook_path}"
+      "reauth_successful": "Neuer Schlüssel gespeichert."
     }
   },
   "options": {
@@ -127,13 +134,6 @@
           "live_seconds": "Wird nur abgefragt, solange die NAS wach ist.",
           "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt; geht sie an, wird nach 90 s alles aktualisiert. Leer = immer abfragen.",
           "show_cinema": "Aus: nur Digital- und Disc-Veröffentlichungen, also was man zu Hause schauen kann."
-        }
-      },
-      "ebooks": {
-        "title": "E-Book-Versand",
-        "description": "Webhook: `{webhook_path}`",
-        "data": {
-          "item_count": "Einträge pro Liste"
         }
       },
       "seerr": {
@@ -186,6 +186,9 @@
       },
       "seerr_requests": {
         "name": "Wünsche"
+      },
+      "ebooks_waiting": {
+        "name": "Wartet auf Zuordnung"
       }
     },
     "button": {

@@ -846,10 +846,73 @@ class SeerrClient(BaseClient):
         return "processing"
 
 
+# ── ebook-sender ────────────────────────────────────────────────────────────
+
+
+def _ts_to_iso(ts: Any) -> str | None:
+    try:
+        return _iso(datetime.fromtimestamp(float(ts), timezone.utc))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+class EbooksClient(BaseClient):
+    """The ebook-sender container: sent books and books waiting for a recipient.
+
+    It runs in the home network without a login, so there is no key.
+    """
+
+    list_keys = ("sent", "waiting")
+    live_keys = ()
+
+    @property
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    async def validate(self) -> None:
+        status = await self._get("/api/status")
+        if not isinstance(status, dict) or "version" not in status:
+            raise ServiceError("/api/status: not an ebook-sender answer")
+
+    def _book(self, book: dict) -> dict:
+        sent_to = book.get("sent_to") or []
+        names = ", ".join(s["name"] for s in sent_to)
+        sent_at = max((s["at"] for s in sent_to), default=None)
+        return {
+            "id": f"ebook-{book['id']}",
+            "kind": "ebook",
+            "title": book.get("title"),
+            "subtitle": book.get("author"),
+            "episode": None,
+            "date": _ts_to_iso(sent_at if sent_to else book.get("found_at")),
+            "date_type": "sent" if sent_to else "added",
+            "meta": names or None,
+            "recipient": names or None,
+            "status": book.get("status"),
+            "error": book.get("error"),
+            "rating": None,
+            "genres": [],
+            "progress": None,
+            "link": f"{self.public_url}/",
+            "image_src": [{"url": f"{self.url}{book['cover']}", "auth": False}] if book.get("cover") else [],
+        }
+
+    async def fetch_lists(self, count: int, days_ahead: int) -> dict[str, list]:
+        sent, waiting = await asyncio.gather(
+            self._get("/api/books", {"status": "sent", "limit": count}),
+            self._get("/api/books", {"status": "unassigned,error,too_large", "limit": 50}),
+        )
+        return {
+            "sent": [self._book(b) for b in (sent or {}).get("books", [])],
+            "waiting": [self._book(b) for b in (waiting or {}).get("books", [])],
+        }
+
+
 CLIENTS: dict[str, type[BaseClient]] = {
     "jellyfin": JellyfinClient,
     "audiobookshelf": AudiobookshelfClient,
     "sonarr": SonarrClient,
     "radarr": RadarrClient,
     "seerr": SeerrClient,
+    "ebooks": EbooksClient,
 }

@@ -36,8 +36,9 @@ from .const import (
     DEFAULT_ITEM_COUNT,
     DEFAULT_LIST_MINUTES,
     DEFAULT_LIVE_SECONDS,
+    DEFAULT_LIST_MINUTES_BY_SERVICE,
     DOMAIN,
-    EBOOK_HISTORY,
+    EVENT_EBOOK_SENT,
     OPT_AVAILABILITY_ENTITY,
     OPT_DAYS_AHEAD,
     OPT_ITEM_COUNT,
@@ -76,7 +77,7 @@ class NasHub:
             self.client = CLIENTS[self.service](
                 self.session,
                 entry.data[CONF_URL],
-                entry.data[CONF_API_KEY],
+                entry.data.get(CONF_API_KEY, ""),
                 entry.data.get(CONF_PUBLIC_URL) or None,
             )
             if self.service == SERVICE_RADARR:
@@ -171,17 +172,6 @@ class NasHub:
             self.stored["updated"] = self.lists.updated
         await self.store.async_save(self.stored)
 
-    # ── e-books arrive by webhook ──
-
-    async def async_add_ebook(self, item: dict) -> None:
-        sent = [item] + [i for i in (self.lists.data or {}).get("sent", []) if i["id"] != item["id"]]
-        lists = {"sent": sent[:EBOOK_HISTORY]}
-        await self.images.resolve(self.session, {}, lists)
-        self.lists.mark_success()
-        await self.async_save(lists)
-        self.lists.async_set_updated_data(lists)
-        await self.async_prune_images()
-
 
 class _HubCoordinator(DataUpdateCoordinator[dict[str, list]]):
     """Common state: when the data was last fetched and whether it is stale."""
@@ -218,7 +208,8 @@ class ListCoordinator(_HubCoordinator):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, hub: NasHub) -> None:
         interval = None
         if hub.client:
-            interval = timedelta(minutes=int(entry.options.get(OPT_LIST_MINUTES, DEFAULT_LIST_MINUTES)))
+            default = DEFAULT_LIST_MINUTES_BY_SERVICE.get(hub.service, DEFAULT_LIST_MINUTES)
+            interval = timedelta(minutes=int(entry.options.get(OPT_LIST_MINUTES, default)))
         super().__init__(hass, entry, hub, "lists", interval)
 
     def _cached(self) -> dict[str, list]:
@@ -230,7 +221,7 @@ class ListCoordinator(_HubCoordinator):
 
     async def _async_update_data(self) -> dict[str, list]:
         hub = self.hub
-        if hub.service == SERVICE_EBOOKS or hub.client is None:
+        if hub.client is None:
             return self._cached()
         if self._skip():
             self.stale = True
@@ -245,6 +236,8 @@ class ListCoordinator(_HubCoordinator):
             self.stale = True
             return self._cached()
         await hub.images.resolve(hub.session, hub.client.auth_headers, lists)
+        if hub.service == SERVICE_EBOOKS:
+            self._announce_new_ebooks(lists)
         self.mark_success()
         await hub.async_save(lists)
         self.data = lists  # so the pruning below sees the new lists
@@ -255,6 +248,23 @@ class ListCoordinator(_HubCoordinator):
             except ServiceError as err:
                 _LOGGER.debug("Seerr check postponed: %s", err)
         return lists
+
+
+    def _announce_new_ebooks(self, lists: dict[str, list]) -> None:
+        """nas_hub_ebook_sent for every book that was not in the last answer."""
+        before = self._cached().get("sent")
+        # First fetch ever, or the cache still holds the webhook era (no status,
+        # other ids): everything would look new
+        if before is None or (before and "status" not in before[0]):
+            return
+        known = {item["id"] for item in before}
+        for item in reversed(lists.get("sent", [])):
+            if item["id"] not in known:
+                self.hass.bus.async_fire(EVENT_EBOOK_SENT, {
+                    "title": item.get("title"),
+                    "author": item.get("subtitle"),
+                    "recipient": item.get("recipient"),
+                })
 
 
 class LiveCoordinator(_HubCoordinator):

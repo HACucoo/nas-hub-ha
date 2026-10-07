@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 — 2026-10-07
+
+- E-book sending reads the new ebook-sender container instead of receiving a webhook: the entry takes the container's address (no key). Sensors "Sent" and, new, "Waiting for a recipient" (a count). `nas_hub_ebook_sent` still fires for every newly sent book.
+- Breaking: an e-book entry set up with the webhook stops with a setup error until it is reconfigured with the container's address.
+- Card: e-books waiting for a recipient, failed or too large carry a status chip.
+
 ## 0.3.2 — 2026-10-06
 
 - Jellyfin "new": the re-scan check comes before the new-series check — Jellyfin re-creates the series item when its folder moves, which made a re-scanned series look brand new.

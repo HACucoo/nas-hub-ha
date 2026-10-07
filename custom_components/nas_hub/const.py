@@ -8,7 +8,6 @@ CONF_SERVICE = "service"
 CONF_URL = "url"
 CONF_API_KEY = "api_key"
 CONF_PUBLIC_URL = "public_url"
-CONF_WEBHOOK_ID = "webhook_id"
 
 SERVICE_JELLYFIN = "jellyfin"
 SERVICE_AUDIOBOOKSHELF = "audiobookshelf"
@@ -32,6 +31,7 @@ DEFAULT_URLS = {
     SERVICE_SONARR: "http://nas.local:8989",
     SERVICE_RADARR: "http://nas.local:7878",
     SERVICE_SEERR: "http://nas.local:5055",
+    SERVICE_EBOOKS: "http://nas.local:8095",
 }
 
 # Options
@@ -47,6 +47,8 @@ OPT_MIN_REQUEST_DAYS = "min_request_days"
 DEFAULT_MIN_REQUEST_DAYS = 7
 
 DEFAULT_LIST_MINUTES = 60
+# The e-book list is small and changes when someone drops a book: ask more often
+DEFAULT_LIST_MINUTES_BY_SERVICE = {SERVICE_EBOOKS: 10}
 DEFAULT_LIVE_SECONDS = 60
 DEFAULT_ITEM_COUNT = 10
 DEFAULT_DAYS_AHEAD = {SERVICE_SONARR: 14, SERVICE_RADARR: 90}
@@ -68,7 +70,6 @@ MAX_IMAGE_BYTES = 3 * 1024 * 1024
 
 FRONTEND_URL_BASE = f"/{DOMAIN}_frontend"
 
-EBOOK_HISTORY = 30
 EVENT_EBOOK_SENT = f"{DOMAIN}_ebook_sent"
 EVENT_REQUEST_AVAILABLE = f"{DOMAIN}_request_available"
 

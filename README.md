@@ -9,7 +9,7 @@ What is new, next and running on the media services of a home NAS — as sensors
 | Radarr | upcoming releases (digital, disc, cinema) | download queue |
 | Audiobookshelf | new audiobooks, continue listening | open listening sessions |
 | Seerr | latest requests with their state; notifies the requester when a wish arrives | — |
-| E-book sending | books your own script sent, reported by webhook | — |
+| E-book sending | books the ebook-sender container sent, books waiting for a recipient | — |
 
 ## How it behaves while the NAS sleeps
 
@@ -41,16 +41,11 @@ The items are in the `items` attribute (not written to the recorder). The state 
 
 Each announcement also fires `nas_hub_request_available` with `title`, `media_type`, `seasons`, `seerr_user`, `notify_service`, `requested_at`, `link`, `image`, `message_title` and `message` — for your own automations, or instead of the built-in push (leave the user unmapped).
 
-### E-book webhook
+### E-book sending
 
-Adding "E-book sending" shows a webhook path. Your script POSTs JSON to `http://<home-assistant>:8123/api/webhook/<id>` after each sent book — accepted from the local network only:
+Reads the [ebook-sender](https://github.com/HACucoo/ebook-sender) container (EPUB drop folder → e-readers, routed by Goodreads shelves). Only its address is needed; it runs without a login. Two sensors: **Sent** (the last books, with recipients and covers) and **Waiting for a recipient** (state = number of books on nobody's Goodreads shelf). The list is fetched every 10 minutes by default; each newly sent book fires `nas_hub_ebook_sent` with `title`, `author` and `recipient`.
 
-```json
-{"title": "Project Hail Mary", "author": "Andy Weir", "recipient": "me@kindle.com",
- "sent_at": "2026-10-04T18:00:00+02:00", "cover_base64": "…"}
-```
-
-Only `title` is required; `cover_url` works instead of `cover_base64`. Each report also fires the event `nas_hub_ebook_sent`.
+Until 0.3 this entry received a webhook from a script. An entry from that time shows a setup error after the update — **⋮ → Reconfigure** and enter the container's address.
 
 ## Card
 

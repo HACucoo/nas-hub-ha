@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-import secrets
 from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.components.webhook import async_generate_path
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -33,10 +31,10 @@ from .const import (
     CONF_PUBLIC_URL,
     CONF_SERVICE,
     CONF_URL,
-    CONF_WEBHOOK_ID,
     DEFAULT_DAYS_AHEAD,
     DEFAULT_ITEM_COUNT,
     DEFAULT_LIST_MINUTES,
+    DEFAULT_LIST_MINUTES_BY_SERVICE,
     DEFAULT_LIVE_SECONDS,
     DEFAULT_MIN_REQUEST_DAYS,
     DEFAULT_URLS,
@@ -62,20 +60,26 @@ URL_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
 KEY_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
+# Services that run in the home network without a login (ebook-sender)
+KEYLESS = {SERVICE_EBOOKS}
+
+
 def _service_schema(service: str, defaults: Mapping[str, Any]) -> vol.Schema:
-    return vol.Schema({
+    schema: dict[Any, Any] = {
         vol.Required(CONF_URL, default=defaults.get(CONF_URL, DEFAULT_URLS.get(service, ""))): URL_SELECTOR,
-        vol.Required(CONF_API_KEY, default=defaults.get(CONF_API_KEY, "")): KEY_SELECTOR,
-        vol.Optional(
-            CONF_PUBLIC_URL,
-            description={"suggested_value": defaults.get(CONF_PUBLIC_URL)},
-        ): URL_SELECTOR,
-    })
+    }
+    if service not in KEYLESS:
+        schema[vol.Required(CONF_API_KEY, default=defaults.get(CONF_API_KEY, ""))] = KEY_SELECTOR
+    schema[vol.Optional(
+        CONF_PUBLIC_URL,
+        description={"suggested_value": defaults.get(CONF_PUBLIC_URL)},
+    )] = URL_SELECTOR
+    return vol.Schema(schema)
 
 
 async def _validate(hass, service: str, data: Mapping[str, Any]) -> str | None:
     """None if the service answered with this key, else an error key."""
-    client = CLIENTS[service](async_get_clientsession(hass), data[CONF_URL], data[CONF_API_KEY])
+    client = CLIENTS[service](async_get_clientsession(hass), data[CONF_URL], data.get(CONF_API_KEY, ""))
     try:
         await client.validate()
     except AuthError:
@@ -97,9 +101,6 @@ def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
 
 class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
-
-    def __init__(self) -> None:
-        self._webhook_id: str | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
@@ -141,30 +142,13 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self._service_step(SERVICE_SEERR, user_input)
 
     async def async_step_ebooks(self, user_input=None) -> ConfigFlowResult:
-        """No server to ask: the sending script reports to a webhook."""
-        if self._webhook_id is None:
-            self._webhook_id = f"nas_hub_ebooks_{secrets.token_hex(12)}"
-        if user_input is not None:
-            return self.async_create_entry(
-                title=SERVICE_NAMES[SERVICE_EBOOKS],
-                data={CONF_SERVICE: SERVICE_EBOOKS, CONF_WEBHOOK_ID: self._webhook_id},
-            )
-        return self.async_show_form(
-            step_id=SERVICE_EBOOKS,
-            data_schema=vol.Schema({}),
-            description_placeholders={"webhook_path": async_generate_path(self._webhook_id)},
-        )
+        return await self._service_step(SERVICE_EBOOKS, user_input)
 
     # ── change URL or key later ──
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         entry = self._get_reconfigure_entry()
         service = entry.data[CONF_SERVICE]
-        if service == SERVICE_EBOOKS:
-            return self.async_abort(
-                reason="ebooks_nothing_to_change",
-                description_placeholders={"webhook_path": async_generate_path(entry.data[CONF_WEBHOOK_ID])},
-            )
         errors: dict[str, str] = {}
         if user_input is not None:
             data = _clean(user_input)
@@ -265,25 +249,24 @@ class NasHubOptionsFlow(OptionsFlow):
         schema: dict[Any, Any] = {
             vol.Required(OPT_ITEM_COUNT, default=opts.get(OPT_ITEM_COUNT, DEFAULT_ITEM_COUNT)): _number(1, 30),
         }
-        if service != SERVICE_EBOOKS:
-            schema[vol.Required(OPT_LIST_MINUTES, default=opts.get(OPT_LIST_MINUTES, DEFAULT_LIST_MINUTES))] = _number(5, 1440, unit="min")
-            if service != SERVICE_SEERR:
-                schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
-            if service in DEFAULT_DAYS_AHEAD:
-                schema[vol.Required(OPT_DAYS_AHEAD, default=opts.get(OPT_DAYS_AHEAD, DEFAULT_DAYS_AHEAD[service]))] = _number(1, 365, unit="d")
-            if service == SERVICE_RADARR:
-                schema[vol.Required(OPT_SHOW_CINEMA, default=opts.get(OPT_SHOW_CINEMA, False))] = BooleanSelector()
-            schema[vol.Optional(
-                OPT_AVAILABILITY_ENTITY,
-                description={"suggested_value": opts.get(OPT_AVAILABILITY_ENTITY)},
-            )] = EntitySelector(EntitySelectorConfig())
+        list_default = DEFAULT_LIST_MINUTES_BY_SERVICE.get(service, DEFAULT_LIST_MINUTES)
+        schema[vol.Required(OPT_LIST_MINUTES, default=opts.get(OPT_LIST_MINUTES, list_default))] = _number(
+            1 if service in KEYLESS else 5, 1440, unit="min"
+        )
+        if service not in (SERVICE_SEERR, SERVICE_EBOOKS):
+            schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
+        if service in DEFAULT_DAYS_AHEAD:
+            schema[vol.Required(OPT_DAYS_AHEAD, default=opts.get(OPT_DAYS_AHEAD, DEFAULT_DAYS_AHEAD[service]))] = _number(1, 365, unit="d")
+        if service == SERVICE_RADARR:
+            schema[vol.Required(OPT_SHOW_CINEMA, default=opts.get(OPT_SHOW_CINEMA, False))] = BooleanSelector()
+        schema[vol.Optional(
+            OPT_AVAILABILITY_ENTITY,
+            description={"suggested_value": opts.get(OPT_AVAILABILITY_ENTITY)},
+        )] = EntitySelector(EntitySelectorConfig())
 
         placeholders = {}
         step_id = "init"
-        if service == SERVICE_EBOOKS:
-            step_id = "ebooks"
-            placeholders["webhook_path"] = async_generate_path(self.config_entry.data[CONF_WEBHOOK_ID])
-        elif service == SERVICE_SEERR:
+        if service == SERVICE_SEERR:
             step_id = "seerr"
             schema[vol.Required(
                 OPT_MIN_REQUEST_DAYS, default=opts.get(OPT_MIN_REQUEST_DAYS, DEFAULT_MIN_REQUEST_DAYS)
@@ -309,7 +292,4 @@ class NasHubOptionsFlow(OptionsFlow):
         )
 
     async def async_step_seerr(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return await self.async_step_init(user_input)
-
-    async def async_step_ebooks(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return await self.async_step_init(user_input)

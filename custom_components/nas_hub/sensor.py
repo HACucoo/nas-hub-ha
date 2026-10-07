@@ -31,6 +31,8 @@ class NasHubSensorDescription(SensorEntityDescription):
     live: bool = False
     # How the card sorts several lists merged into one: asc = soonest first
     order: str = "desc"
+    # State is the number of items (like the live lists) instead of the first title
+    count_state: bool = False
 
 
 SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
@@ -56,6 +58,8 @@ SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
     ),
     SERVICE_EBOOKS: (
         NasHubSensorDescription(key="sent", translation_key="ebooks_sent", list_key="sent"),
+        # Counted, not named: "2 books wait for someone to pick a reader"
+        NasHubSensorDescription(key="waiting", translation_key="ebooks_waiting", list_key="waiting", count_state=True),
     ),
 }
 
@@ -112,7 +116,7 @@ class NasHubListSensor(CoordinatorEntity[_HubCoordinator], SensorEntity):
     @property
     def native_value(self) -> str | int | None:
         items = self._items
-        if self.entity_description.live:
+        if self.entity_description.live or self.entity_description.count_state:
             return len(items)
         if not items:
             return None
