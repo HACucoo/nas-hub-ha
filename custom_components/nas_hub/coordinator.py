@@ -38,7 +38,6 @@ from .const import (
     DEFAULT_LIVE_SECONDS,
     DEFAULT_LIST_MINUTES_BY_SERVICE,
     DOMAIN,
-    EVENT_EBOOK_SENT,
     OPT_AVAILABILITY_ENTITY,
     OPT_DAYS_AHEAD,
     OPT_ITEM_COUNT,
@@ -53,6 +52,7 @@ from .const import (
     WAKE_REFRESH_DELAY,
 )
 from .images import ImageCache
+from .ebook_notify import EbookNotifier
 from .seerr_notify import RequestNotifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -85,6 +85,7 @@ class NasHub:
             if isinstance(self.client, SeerrClient):
                 self.client.language = (hass.config.language or "en").split("-")[0]
         self.notifier: RequestNotifier | None = RequestNotifier(self) if self.service == SERVICE_SEERR else None
+        self.ebook_notifier: EbookNotifier | None = EbookNotifier(self) if self.service == SERVICE_EBOOKS else None
         self.stored: dict[str, Any] = {}
         self.lists = ListCoordinator(hass, entry, self)
         self.live: LiveCoordinator | None = (
@@ -236,12 +237,13 @@ class ListCoordinator(_HubCoordinator):
             self.stale = True
             return self._cached()
         await hub.images.resolve(hub.session, hub.client.auth_headers, lists)
-        if hub.service == SERVICE_EBOOKS:
-            self._announce_new_ebooks(lists)
+        new_ebooks = self._new_ebooks(lists) if hub.service == SERVICE_EBOOKS else []
         self.mark_success()
         await hub.async_save(lists)
         self.data = lists  # so the pruning below sees the new lists
         await hub.async_prune_images()
+        if new_ebooks and hub.ebook_notifier:
+            await hub.ebook_notifier.async_announce(new_ebooks)
         if hub.notifier and isinstance(hub.client, SeerrClient):
             try:
                 await hub.notifier.async_check(hub.client)
@@ -250,21 +252,15 @@ class ListCoordinator(_HubCoordinator):
         return lists
 
 
-    def _announce_new_ebooks(self, lists: dict[str, list]) -> None:
-        """nas_hub_ebook_sent for every book that was not in the last answer."""
+    def _new_ebooks(self, lists: dict[str, list]) -> list[dict]:
+        """Books in 'sent' that were not in the last answer, oldest first."""
         before = self._cached().get("sent")
         # First fetch ever, or the cache still holds the webhook era (no status,
         # other ids): everything would look new
         if before is None or (before and "status" not in before[0]):
-            return
+            return []
         known = {item["id"] for item in before}
-        for item in reversed(lists.get("sent", [])):
-            if item["id"] not in known:
-                self.hass.bus.async_fire(EVENT_EBOOK_SENT, {
-                    "title": item.get("title"),
-                    "author": item.get("subtitle"),
-                    "recipient": item.get("recipient"),
-                })
+        return [item for item in reversed(lists.get("sent", [])) if item["id"] not in known]
 
 
 class LiveCoordinator(_HubCoordinator):

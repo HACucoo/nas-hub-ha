@@ -874,6 +874,11 @@ class EbooksClient(BaseClient):
         if not isinstance(status, dict) or "version" not in status:
             raise ServiceError("/api/status: not an ebook-sender answer")
 
+    async def fetch_users(self) -> list[dict]:
+        """ebook-sender's users ({id, name}) for the notify mapping."""
+        status = await self._get("/api/status")
+        return [{"id": u["id"], "name": u["name"]} for u in (status or {}).get("users", [])]
+
     def _book(self, book: dict) -> dict:
         sent_to = book.get("sent_to") or []
         names = ", ".join(s["name"] for s in sent_to)
@@ -888,6 +893,12 @@ class EbooksClient(BaseClient):
             "date_type": "sent" if sent_to else "added",
             "meta": names or None,
             "recipient": names or None,
+            # Per recipient: when sent, since when it was on their Goodreads shelf
+            "recipients": [
+                {"id": s.get("id"), "name": s.get("name"), "at": _ts_to_iso(s.get("at")),
+                 "listed_at": _ts_to_iso(s.get("listed_at")), "image": s.get("image")}
+                for s in sent_to
+            ],
             "status": book.get("status"),
             "error": book.get("error"),
             "rating": None,

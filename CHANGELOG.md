@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 — 2026-10-08
+
+- E-book sending: a push like Seerr's when a book that sat on the recipient's Goodreads shelf for at least a week (option) has been sent to their reader. Each ebook-sender user is mapped to a notify service in the options; books picked by hand (on no shelf) never push. `nas_hub_ebook_sent` now also lists the recipients with `sent_at` and `listed_at`.
+- Needs ebook-sender 1.2.0 or later (it reports since when a book was on the shelf).
+
 ## 0.4.0 — 2026-10-07
 
 - E-book sending reads the new ebook-sender container instead of receiving a webhook: the entry takes the container's address (no key). Sensors "Sent" and, new, "Waiting for a recipient" (a count). `nas_hub_ebook_sent` still fires for every newly sent book.

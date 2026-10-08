@@ -25,7 +25,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import CLIENTS, AuthError, SeerrClient, ServiceError
+from .api import CLIENTS, AuthError, EbooksClient, SeerrClient, ServiceError
 from .const import (
     CONF_API_KEY,
     CONF_PUBLIC_URL,
@@ -212,10 +212,12 @@ class NasHubOptionsFlow(OptionsFlow):
         super().__init__()
         self._users: list[dict] | None = None
 
-    async def _seerr_users(self) -> list[dict]:
+    async def _service_users(self, service: str) -> list[dict]:
+        """Seerr's or ebook-sender's users, asked for live."""
         if self._users is None:
             data = self.config_entry.data
-            client = SeerrClient(async_get_clientsession(self.hass), data[CONF_URL], data[CONF_API_KEY])
+            client_cls = SeerrClient if service == SERVICE_SEERR else EbooksClient
+            client = client_cls(async_get_clientsession(self.hass), data[CONF_URL], data.get(CONF_API_KEY, ""))
             try:
                 self._users = await client.fetch_users()
             except ServiceError:
@@ -229,11 +231,12 @@ class NasHubOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         service = self.config_entry.data[CONF_SERVICE]
         opts = self.config_entry.options
-        users = await self._seerr_users() if service == SERVICE_SEERR else []
+        notifies = service in (SERVICE_SEERR, SERVICE_EBOOKS)
+        users = await self._service_users(service) if notifies else []
 
         if user_input is not None:
             data = {k: int(v) if isinstance(v, float) else v for k, v in user_input.items()}
-            if service == SERVICE_SEERR:
+            if notifies:
                 if users:
                     mapping = {}
                     for user in users:
@@ -242,7 +245,7 @@ class NasHubOptionsFlow(OptionsFlow):
                             mapping[str(user["id"])] = target
                     data[OPT_NOTIFY_MAP] = mapping
                 else:
-                    # Seerr unreachable: keep who was mapped before
+                    # Service unreachable: keep who was mapped before
                     data[OPT_NOTIFY_MAP] = opts.get(OPT_NOTIFY_MAP, {})
             return self.async_create_entry(title="", data=data)
 
@@ -266,8 +269,8 @@ class NasHubOptionsFlow(OptionsFlow):
 
         placeholders = {}
         step_id = "init"
-        if service == SERVICE_SEERR:
-            step_id = "seerr"
+        if notifies:
+            step_id = service
             schema[vol.Required(
                 OPT_MIN_REQUEST_DAYS, default=opts.get(OPT_MIN_REQUEST_DAYS, DEFAULT_MIN_REQUEST_DAYS)
             )] = _number(0, 90, unit="d")
@@ -283,7 +286,7 @@ class NasHubOptionsFlow(OptionsFlow):
                     description={"suggested_value": mapping.get(str(user["id"]))},
                 )] = selector
             placeholders["users"] = (
-                ", ".join(u["name"] for u in users) if users else "– (Seerr nicht erreichbar / not reachable)"
+                ", ".join(u["name"] for u in users) if users else "– (nicht erreichbar / not reachable)"
             )
         return self.async_show_form(
             step_id=step_id,
@@ -292,4 +295,7 @@ class NasHubOptionsFlow(OptionsFlow):
         )
 
     async def async_step_seerr(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return await self.async_step_init(user_input)
+
+    async def async_step_ebooks(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return await self.async_step_init(user_input)

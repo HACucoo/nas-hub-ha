@@ -149,6 +149,20 @@
           "min_request_days": "Wer erst gestern gewünscht hat, wartet ohnehin noch darauf. 0 = jeden Wunsch melden.",
           "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt. Leer = immer abfragen."
         }
+      },
+      "ebooks": {
+        "title": "E-Book-Versand",
+        "description": "Wer bekommt eine Push, wenn ein Buch an seinen Reader geschickt wurde, auf das er schon länger gewartet hat? Ordne jedem ebook-sender-Benutzer einen Benachrichtigungsdienst zu (leer = keine Push, nur das Ereignis `nas_hub_ebook_sent`).\n\nBücher, die auf keiner Goodreads-Liste standen (von Hand zugeordnet), melden sich nie.\n\nebook-sender-Benutzer: {users}",
+        "data": {
+          "item_count": "Einträge pro Liste",
+          "list_minutes": "Liste abrufen alle",
+          "availability_entity": "NAS wach (Entität)",
+          "min_request_days": "Nur Bücher, die mindestens so lange auf der Liste standen"
+        },
+        "data_description": {
+          "min_request_days": "Wer ein Buch erst gestern auf die Liste gesetzt hat, wartet ohnehin darauf. 0 = jedes Buch von einer Liste melden.",
+          "availability_entity": "Solange diese Entität aus/nicht verfügbar ist, wird nichts abgefragt. Leer = immer abfragen."
+        }
       }
     }
   },

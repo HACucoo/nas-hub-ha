@@ -149,6 +149,20 @@
           "min_request_days": "Whoever asked yesterday is still waiting for it anyway. 0 = announce every request.",
           "availability_entity": "While this entity is off/unavailable nothing is fetched. Empty = always fetch."
         }
+      },
+      "ebooks": {
+        "title": "E-book sending",
+        "description": "Who gets a push when a book they waited for was sent to their reader? Map each ebook-sender user to a notify service (empty = no push, only the event `nas_hub_ebook_sent`).\n\nBooks that were on no Goodreads shelf (picked by hand) never push.\n\nebook-sender users: {users}",
+        "data": {
+          "item_count": "Items per list",
+          "list_minutes": "Fetch the list every",
+          "availability_entity": "NAS awake (entity)",
+          "min_request_days": "Only books on the shelf for at least"
+        },
+        "data_description": {
+          "min_request_days": "Whoever put a book on the shelf yesterday expects it anyway. 0 = announce every book from a shelf.",
+          "availability_entity": "While this entity is off/unavailable nothing is requested. Empty = always ask."
+        }
       }
     }
   },
