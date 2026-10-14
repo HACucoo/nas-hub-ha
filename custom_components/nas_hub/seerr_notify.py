@@ -5,8 +5,12 @@ Rules:
 * A movie counts once, when Seerr reports it available.
 * A series counts once per season, when its first episodes are there —
   not again for every further episode.
-* Only wishes at least a week old (option) are worth a push; whoever asked
-  yesterday is still waiting for it anyway.
+* When a season is complete (Seerr: all its episodes are in Jellyfin), the
+  people who asked get one more push — whatever the age of the wish, because
+  that is the moment to start binge-watching. A season that arrives complete
+  at once gets only this one push.
+* Only wishes at least a week old (option) are worth a push for the first
+  episodes; whoever asked yesterday is still waiting for it anyway.
 * Media seen for the first time is only remembered, never announced: on the
   first run, after a failed lookup or for a season that was already there
   when someone asked, nothing new has happened.
@@ -39,6 +43,9 @@ TEXTS = {
         "season_many": "Staffeln {list}",
         "season_partial": "Die neue Staffel hat angefangen – die ersten Folgen sind auf Jellyfin.",
         "season_complete": "Ist jetzt komplett auf Jellyfin.",
+        "complete_title": "📺 {title}: {seasons} komplett",
+        "complete_message": "Die letzte Folge ist da – {seasons} ist jetzt komplett auf Jellyfin.",
+        "complete_message_many": "Die letzten Folgen sind da – {seasons} sind jetzt komplett auf Jellyfin.",
         "days": "vor {n} Tagen",
         "weeks": "vor {n} Wochen",
         "months": "vor {n} Monaten",
@@ -51,6 +58,9 @@ TEXTS = {
         "season_many": "seasons {list}",
         "season_partial": "The new season has started – the first episodes are on Jellyfin.",
         "season_complete": "Now complete on Jellyfin.",
+        "complete_title": "📺 {title}: {seasons} complete",
+        "complete_message": "The last episode is here – {seasons} is now complete on Jellyfin.",
+        "complete_message_many": "The last episodes are here – {seasons} are now complete on Jellyfin.",
         "days": "{n} days ago",
         "weeks": "{n} weeks ago",
         "months": "{n} months ago",
@@ -92,7 +102,11 @@ class RequestNotifier:
         state: dict[str, Any] = hub.stored.setdefault("seerr", {})
         seen: set[str] = set(state.get("seen", []))
         done: set[str] = set(state.get("done", []))
-        before = (len(seen), len(done))
+        complete: set[str] = set(state.get("complete", []))
+        # Series whose complete seasons are known; until 0.5 they were not
+        # tracked, so the first look only learns, it does not push old seasons
+        tracked: set[str] = set(state.get("complete_tracked", []))
+        before = (len(seen), len(done), len(complete), len(tracked))
 
         # Who asked for what, and since when (earliest wish per person)
         wishes: dict[tuple[str, int], dict[Any, dict]] = {}
@@ -109,6 +123,7 @@ class RequestNotifier:
                 movie_status[req["tmdb"]] = req["media_status"]
 
         announcements = []
+        completions = []
         for (kind, tmdb), people in wishes.items():
             media_key = f"{kind[0]}{tmdb}"
             if kind == "movie":
@@ -123,6 +138,17 @@ class RequestNotifier:
             done.update(keys.values())
             first_sight = media_key not in seen
             seen.add(media_key)
+            new_complete: set[int] = set()
+            if kind == "tv":
+                ckeys = {n: f"{media_key}s{n}" for n, s in arrived.items() if s == MEDIA_AVAILABLE}
+                new_complete = {n for n, key in ckeys.items() if key not in complete}
+                complete.update(ckeys.values())
+                known = media_key in tracked
+                tracked.add(media_key)
+                if new_complete and known:
+                    completions.append((tmdb, people, sorted(new_complete)))
+                    # Arrived complete at once: the completion push says it all
+                    new = {n: st for n, st in new.items() if n not in new_complete}
             if new and not first_sight:
                 announcements.append((kind, tmdb, people, new))
 
@@ -131,10 +157,17 @@ class RequestNotifier:
                 await self._announce(client, kind, tmdb, people, new)
             except Exception:  # noqa: BLE001 — a failed push must not lose the bookkeeping
                 _LOGGER.exception("Announcing Seerr media %s %s failed", kind, tmdb)
+        for tmdb, people, seasons in completions:
+            try:
+                await self._announce_complete(client, tmdb, people, seasons)
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Announcing complete seasons of %s failed", tmdb)
 
-        if (len(seen), len(done)) != before:
+        if (len(seen), len(done), len(complete), len(tracked)) != before:
             state["seen"] = sorted(seen)
             state["done"] = sorted(done)
+            state["complete"] = sorted(complete)
+            state["complete_tracked"] = sorted(tracked)
             await hub.async_save()
 
     async def _announce(self, client: SeerrClient, kind: str, tmdb: int, people: dict, new: dict) -> None:
@@ -149,12 +182,7 @@ class RequestNotifier:
             page = client.series[tmdb]
             link = page.get("media_url")
             seasons = sorted(new)
-            label = (
-                t["season_one"].format(n=seasons[0])
-                if len(seasons) == 1
-                else t["season_many"].format(list=", ".join(str(n) for n in seasons))
-            )
-            title = t["season_title"].format(title=page["title"], seasons=label)
+            title = t["season_title"].format(title=page["title"], seasons=self._seasons_label(seasons))
             complete = all(new[n] == MEDIA_AVAILABLE for n in seasons)
             body = t["season_complete"] if complete else t["season_partial"]
         link = link or f"{client.public_url}/{kind}/{tmdb}"
@@ -171,6 +199,7 @@ class RequestNotifier:
             service = notify_map.get(str(user_id)) or None
             hub.hass.bus.async_fire(EVENT_REQUEST_AVAILABLE, {
                 "media_type": kind,
+                "event": "arrived",
                 "title": page["title"],
                 "seasons": seasons,
                 "seerr_user_id": user_id,
@@ -185,6 +214,51 @@ class RequestNotifier:
             if not service or not hub.hass.services.has_service("notify", service):
                 continue
             data: dict[str, Any] = {"tag": f"nas_hub_{kind}_{tmdb}", "url": link, "clickAction": link}
+            if page.get("poster"):
+                data["image"] = page["poster"]
+                data["attachment"] = {"url": page["poster"], "content-type": "jpeg"}
+            await hub.hass.services.async_call(
+                "notify", service, {"title": title, "message": message, "data": data}, blocking=False
+            )
+
+    def _seasons_label(self, seasons: list[int]) -> str:
+        t = self._texts
+        if len(seasons) == 1:
+            return t["season_one"].format(n=seasons[0])
+        return t["season_many"].format(list=", ".join(str(n) for n in seasons))
+
+    async def _announce_complete(self, client: SeerrClient, tmdb: int, people: dict, seasons: list[int]) -> None:
+        """'Season 3 is complete' to everyone who asked — no minimum age."""
+        hub = self.hub
+        t = self._texts
+        page = client.series[tmdb]
+        link = page.get("media_url") or f"{client.public_url}/tv/{tmdb}"
+        label = self._seasons_label(seasons)
+        # Sentence start: "Staffel 3 ist …" / "Season 3 is …"
+        label_cap = label[:1].upper() + label[1:]
+        title = t["complete_title"].format(title=page["title"], seasons=label_cap)
+        message = (t["complete_message"] if len(seasons) == 1 else t["complete_message_many"]).format(seasons=label_cap)
+        notify_map: dict[str, str] = hub.option(OPT_NOTIFY_MAP, {}) or {}
+        for user_id, person in people.items():
+            service = notify_map.get(str(user_id)) or None
+            created = person["created"]
+            hub.hass.bus.async_fire(EVENT_REQUEST_AVAILABLE, {
+                "media_type": "tv",
+                "event": "season_complete",
+                "title": page["title"],
+                "seasons": seasons,
+                "seerr_user_id": user_id,
+                "seerr_user": person["name"],
+                "notify_service": service,
+                "requested_at": created.isoformat() if created else None,
+                "link": link,
+                "image": page.get("poster"),
+                "message_title": title,
+                "message": message,
+            })
+            if not service or not hub.hass.services.has_service("notify", service):
+                continue
+            data: dict[str, Any] = {"tag": f"nas_hub_tv_{tmdb}_complete", "url": link, "clickAction": link}
             if page.get("poster"):
                 data["image"] = page["poster"]
                 data["attachment"] = {"url": page["poster"], "content-type": "jpeg"}

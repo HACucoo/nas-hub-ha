@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — 2026-10-14
+
+- Seerr: a push "Season 3 complete" when the last episode of a requested season is in Jellyfin (Seerr reports the season available), to everyone who asked — without the minimum request age. A season that arrives complete at once gets only this push instead of two.
+- `nas_hub_request_available` carries `event`: `arrived` or `season_complete`.
+- The first check after the update only learns which seasons are complete already; nothing old is announced.
+
 ## 0.5.0 — 2026-10-08
 
 - E-book sending: a push like Seerr's when a book that sat on the recipient's Goodreads shelf for at least a week (option) has been sent to their reader. Each ebook-sender user is mapped to a notify service in the options; books picked by hand (on no shelf) never push. `nas_hub_ebook_sent` now also lists the recipients with `sent_at` and `listed_at`.

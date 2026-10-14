@@ -36,10 +36,11 @@ The items are in the `items` attribute (not written to the recorder). The state 
 
 - a **movie** is announced once, when Seerr reports it available;
 - a **series** is announced once per **new season** — when its first episodes are there, not for every further episode;
-- only requests at least **7 days** old (option) — whoever asked yesterday is still waiting for it anyway;
+- once the **last episode** of a season is there (Seerr: season available), everyone who asked gets "Season 3 complete" — whatever the age of the request; a season that arrives complete at once gets only this push;
+- first episodes and movies only for requests at least **7 days** old (option) — whoever asked yesterday is still waiting for it anyway;
 - media seen for the first time (first run, or a season that was already there) is remembered, never announced.
 
-Each announcement also fires `nas_hub_request_available` with `title`, `media_type`, `seasons`, `seerr_user`, `notify_service`, `requested_at`, `link`, `image`, `message_title` and `message` — for your own automations, or instead of the built-in push (leave the user unmapped).
+Each announcement also fires `nas_hub_request_available` with `event` (`arrived` or `season_complete`), `title`, `media_type`, `seasons`, `seerr_user`, `notify_service`, `requested_at`, `link`, `image`, `message_title` and `message` — for your own automations, or instead of the built-in push (leave the user unmapped).
 
 ### E-book sending
 
