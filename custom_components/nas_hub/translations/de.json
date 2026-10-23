@@ -10,7 +10,8 @@
           "sonarr": "Sonarr",
           "radarr": "Radarr",
           "seerr": "Seerr (Wünsche)",
-          "ebooks": "E-Book-Versand (ebook-sender)"
+          "ebooks": "E-Book-Versand (ebook-sender)",
+          "tdarr": "Tdarr"
         }
       },
       "jellyfin": {
@@ -104,6 +105,19 @@
         "data_description": {
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:5055",
           "public_url": "Für Links in den Karten und Benachrichtigungen. Leer = lokale Adresse."
+        }
+      },
+      "tdarr": {
+        "title": "Tdarr",
+        "description": "API-Schlüssel: Tdarr → Tools → API Keys. Gezeigt wird, was die Worker gerade bearbeiten und wie viel in der Warteschlange steht.",
+        "data": {
+          "url": "Adresse (lokal)",
+          "api_key": "API-Schlüssel",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
+        "data_description": {
+          "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:8265",
+          "public_url": "Für Links in den Karten. Leer = lokale Adresse."
         }
       }
     },
@@ -203,6 +217,12 @@
       },
       "ebooks_waiting": {
         "name": "Wartet auf Zuordnung"
+      },
+      "tdarr_transcoding": {
+        "name": "Wird bearbeitet"
+      },
+      "tdarr_queue": {
+        "name": "Warteschlange"
       }
     },
     "button": {

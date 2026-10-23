@@ -15,6 +15,7 @@ SERVICE_SONARR = "sonarr"
 SERVICE_RADARR = "radarr"
 SERVICE_EBOOKS = "ebooks"
 SERVICE_SEERR = "seerr"
+SERVICE_TDARR = "tdarr"
 
 SERVICE_NAMES = {
     SERVICE_JELLYFIN: "Jellyfin",
@@ -23,6 +24,7 @@ SERVICE_NAMES = {
     SERVICE_RADARR: "Radarr",
     SERVICE_SEERR: "Seerr",
     SERVICE_EBOOKS: "E-Book-Versand",
+    SERVICE_TDARR: "Tdarr",
 }
 
 DEFAULT_URLS = {
@@ -32,6 +34,7 @@ DEFAULT_URLS = {
     SERVICE_RADARR: "http://nas.local:7878",
     SERVICE_SEERR: "http://nas.local:5055",
     SERVICE_EBOOKS: "http://nas.local:8095",
+    SERVICE_TDARR: "http://nas.local:8265",
 }
 
 # Options

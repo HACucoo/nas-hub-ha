@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0 — 2026-10-23
+
+- New service **Tdarr**: sensors "Processing" (what the transcode workers are on, with progress, time left and fps) and "Queue" (files waiting, plus done/failed and health-check counts as attributes). The card shows Tdarr jobs like downloads.
+
 ## 0.6.0 — 2026-10-14
 
 - Seerr: a push "Season 3 complete" when the last episode of a requested season is in Jellyfin (Seerr reports the season available), to everyone who asked — without the minimum request age. A season that arrives complete at once gets only this push instead of two.

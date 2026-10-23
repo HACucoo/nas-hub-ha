@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
+import re
 from typing import Any
 
 import aiohttp
@@ -130,6 +131,18 @@ class BaseClient:
                 resp = await self._session.get(
                     f"{self.url}{path}", params=params, headers=self.auth_headers
                 )
+                if resp.status in (401, 403):
+                    raise AuthError(f"{path}: HTTP {resp.status}")
+                if resp.status >= 400:
+                    raise ServiceError(f"{path}: HTTP {resp.status}")
+                return await resp.json(content_type=None)
+        except (aiohttp.ClientError, TimeoutError, ValueError) as err:
+            raise ServiceError(f"{path}: {err!r}") from err
+
+    async def _post(self, path: str, body: dict[str, Any]) -> Any:
+        try:
+            async with asyncio.timeout(REQUEST_TIMEOUT):
+                resp = await self._session.post(f"{self.url}{path}", json=body, headers=self.auth_headers)
                 if resp.status in (401, 403):
                     raise AuthError(f"{path}: HTTP {resp.status}")
                 if resp.status >= 400:
@@ -919,6 +932,87 @@ class EbooksClient(BaseClient):
         }
 
 
+# ── Tdarr ────────────────────────────────────────────────────────────────────
+
+_EPISODE = re.compile(r"\bS(\d{1,2})E(\d{1,3})\b", re.IGNORECASE)
+
+
+class TdarrClient(BaseClient):
+    """Tdarr: what its workers transcode right now, and how much waits.
+
+    "stats" holds one item with the counts of Tdarr's status tables, read by the
+    queue sensor; it has no artwork and no title.
+    """
+
+    live_keys = ("transcoding", "stats")
+
+    @property
+    def auth_headers(self) -> dict[str, str]:
+        return {"x-api-key": self._api_key}
+
+    async def _statistics(self) -> dict:
+        return await self._post(
+            "/api/v2/cruddb", {"data": {"collection": "StatisticsJSONDB", "mode": "getById", "docID": "statistics"}}
+        ) or {}
+
+    async def validate(self) -> None:
+        # The status page needs no key; the database does
+        await self._statistics()
+
+    def _job(self, worker_id: str, worker: dict) -> dict:
+        path = str(worker.get("file") or "")
+        parts = [p for p in path.split("/") if p]
+        name = parts[-1].rsplit(".", 1)[0] if parts else path
+        episode = _EPISODE.search(name)
+        if episode:
+            # …/<series>/Season 01/<file>: the series folder names it
+            series = parts[-3] if len(parts) >= 3 else name
+            title, media, label = series, "episode", f"S{int(episode[1]):02d}E{int(episode[2]):02d}"
+        else:
+            title, media, label = (parts[-2] if len(parts) >= 2 else name), "movie", None
+        percentage = worker.get("percentage")
+        eta = worker.get("ETA")
+        return {
+            "id": f"tdarr-{worker_id}",
+            "kind": "transcode",
+            "media": media,
+            "title": title,
+            "subtitle": name if media == "episode" else None,
+            "episode": label,
+            "date": None,
+            "date_type": None,
+            "meta": None,
+            "status": worker.get("status"),
+            "eta": eta if eta and not str(eta).startswith("Calc") else None,
+            "fps": worker.get("fps") or None,
+            "progress": round(float(percentage) / 100, 3) if isinstance(percentage, (int, float)) else None,
+            "rating": None,
+            "genres": [],
+            "link": f"{self.public_url}/",
+            "image_src": [],
+        }
+
+    async def fetch_live(self) -> dict[str, list]:
+        nodes, stats = await asyncio.gather(self._get("/api/v2/get-nodes"), self._statistics())
+        jobs = [
+            self._job(worker_id, worker)
+            for node in (nodes or {}).values()
+            for worker_id, worker in (node.get("workers") or {}).items()
+            if str(worker.get("workerType", "")).startswith("transcode") and worker.get("file")
+        ]
+        # Tdarr's status tables: 1 transcode queue, 2 done, 3 failed; 4 health-check queue, 6 failed
+        count = lambda n: int(stats.get(f"table{n}Count") or 0)  # noqa: E731
+        return {
+            "transcoding": jobs,
+            "stats": [{
+                "id": "tdarr-stats",
+                "queued": count(1), "done": count(2), "failed": count(3),
+                "health_queued": count(4), "health_failed": count(6),
+                "files": int(stats.get("totalFileCount") or 0),
+            }],
+        }
+
+
 CLIENTS: dict[str, type[BaseClient]] = {
     "jellyfin": JellyfinClient,
     "audiobookshelf": AudiobookshelfClient,
@@ -926,4 +1020,5 @@ CLIENTS: dict[str, type[BaseClient]] = {
     "radarr": RadarrClient,
     "seerr": SeerrClient,
     "ebooks": EbooksClient,
+    "tdarr": TdarrClient,
 }

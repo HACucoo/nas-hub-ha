@@ -10,6 +10,7 @@ What is new, next and running on the media services of a home NAS — as sensors
 | Audiobookshelf | new audiobooks, continue listening | open listening sessions |
 | Seerr | latest requests with their state; notifies the requester when a wish arrives | — |
 | E-book sending | books the ebook-sender container sent, books waiting for a recipient | — |
+| Tdarr | — | what the workers transcode (progress, time left), queue counts |
 
 ## How it behaves while the NAS sleeps
 
@@ -47,6 +48,10 @@ Each announcement also fires `nas_hub_request_available` with `event` (`arrived`
 Reads the [ebook-sender](https://github.com/HACucoo/ebook-sender) container (EPUB drop folder → e-readers, routed by Goodreads shelves). Only its address is needed; it runs without a login. Two sensors: **Sent** (the last books, with recipients and covers) and **Waiting for a recipient** (state = number of books on nobody's Goodreads shelf). The list is fetched every 10 minutes by default; each newly sent book fires `nas_hub_ebook_sent` with `title`, `author` and `recipient`.
 
 Until 0.3 this entry received a webhook from a script. An entry from that time shows a setup error after the update — **⋮ → Reconfigure** and enter the container's address.
+
+### Tdarr
+
+Needs an API key (Tdarr → Tools → API Keys). Two live sensors: **Processing** (the files the transcode workers are on, with progress, time left and fps; series by their folder and episode) and **Queue** (state = files waiting for a transcode; attributes `done`, `failed`, `health_queued`, `health_failed`, `files`). Both are empty/unknown while the NAS sleeps.
 
 ## Card
 

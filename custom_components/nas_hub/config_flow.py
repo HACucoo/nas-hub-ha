@@ -54,6 +54,7 @@ from .const import (
     SERVICE_RADARR,
     SERVICE_SEERR,
     SERVICE_SONARR,
+    SERVICE_TDARR,
 )
 
 URL_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
@@ -105,7 +106,7 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="user",
-            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_SEERR, SERVICE_EBOOKS],
+            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_SEERR, SERVICE_EBOOKS, SERVICE_TDARR],
         )
 
     async def _service_step(self, service: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
@@ -143,6 +144,9 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_ebooks(self, user_input=None) -> ConfigFlowResult:
         return await self._service_step(SERVICE_EBOOKS, user_input)
+
+    async def async_step_tdarr(self, user_input=None) -> ConfigFlowResult:
+        return await self._service_step(SERVICE_TDARR, user_input)
 
     # ── change URL or key later ──
 

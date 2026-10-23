@@ -25,6 +25,7 @@
 const STRINGS = {
   de: {
     kind: { movie: 'Film', series: 'Serie', episode: 'Serie', audiobook: 'Hörbuch', ebook: 'Buch' },
+    fps: n => `${n} fps`,
     dateType: { digital: 'Digital', physical: 'Disc', cinema: 'Kino' },
     today: 'Heute', tomorrow: 'Morgen', yesterday: 'Gestern',
     inDays: n => `in ${n} Tagen`, daysAgo: n => `vor ${n} Tagen`,
@@ -37,13 +38,14 @@ const STRINGS = {
     sentTo: r => `an ${r}`,
     ebookStatus: { unassigned: 'wartet auf Zuordnung', error: 'Fehler', too_large: 'zu groß' },
     readBy: n => `gelesen von ${n}`,
-    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', waiting: 'Nichts wartet', requests: 'Keine Wünsche', other: 'Noch nichts da' },
+    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', waiting: 'Nichts wartet', requests: 'Keine Wünsche', transcoding: 'Tdarr hat gerade nichts zu tun', other: 'Noch nichts da' },
     request: { available: 'Verfügbar', partial: 'Teilweise da', processing: 'Wird besorgt', pending: 'Wartet auf Freigabe', declined: 'Abgelehnt' },
     stand: t => `Stand ${t}`, asleep: 'NAS schläft', unreachable: 'nicht erreichbar',
     noEntities: 'Bitte im Karteneditor mindestens einen NAS-Hub-Sensor wählen.',
   },
   en: {
     kind: { movie: 'Movie', series: 'TV', episode: 'TV', audiobook: 'Audiobook', ebook: 'Book' },
+    fps: n => `${n} fps`,
     dateType: { digital: 'Digital', physical: 'Disc', cinema: 'Cinema' },
     today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday',
     inDays: n => `in ${n} days`, daysAgo: n => `${n} days ago`,
@@ -56,7 +58,7 @@ const STRINGS = {
     sentTo: r => `to ${r}`,
     ebookStatus: { unassigned: 'needs a recipient', error: 'error', too_large: 'too large' },
     readBy: n => `read by ${n}`,
-    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', waiting: 'Nothing waiting', requests: 'No requests', other: 'Nothing here yet' },
+    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', waiting: 'Nothing waiting', requests: 'No requests', transcoding: 'Tdarr is idle', other: 'Nothing here yet' },
     request: { available: 'Available', partial: 'Partly here', processing: 'Processing', pending: 'Awaiting approval', declined: 'Declined' },
     stand: t => `as of ${t}`, asleep: 'NAS asleep', unreachable: 'unreachable',
     noEntities: 'Pick at least one NAS Hub sensor in the card editor.',
@@ -171,7 +173,7 @@ class NasHubCard extends HTMLElement {
 
   _relative(item, S) {
     if (this._config.relative === false) return '';
-    if (item.kind === 'download' || item.kind === 'session') return '';
+    if (item.kind === 'download' || item.kind === 'session' || item.kind === 'transcode') return '';
     const d = parseDate(item.date);
     if (!d) return '';
     const n = dayDiff(d);
@@ -225,6 +227,10 @@ class NasHubCard extends HTMLElement {
       const status = S.status[(item.status || '').replace(/[^a-z]/g, '')] || item.status || '';
       const left = item.timeleft && item.status === 'downloading' ? S.left(formatTimeleft(item.timeleft)) : '';
       view.meta.push(...[pct, left || status].filter(Boolean));
+    } else if (item.kind === 'transcode') {
+      // Tdarr: progress, time left (or the step it is at), speed
+      const pct = view.progress != null ? `${Math.round(view.progress * 100)} %` : '';
+      view.meta.push(...[pct, item.eta ? S.left(formatTimeleft(item.eta)) : item.status, item.fps ? S.fps(item.fps) : ''].filter(Boolean));
     } else if (item.kind === 'session') {
       if (item.meta) view.meta.push(item.meta);
       if (item.paused) view.chips.push({ text: S.paused });

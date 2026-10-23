@@ -21,6 +21,7 @@ from .const import (
     SERVICE_RADARR,
     SERVICE_SEERR,
     SERVICE_SONARR,
+    SERVICE_TDARR,
 )
 from .coordinator import NasHub, _HubCoordinator
 
@@ -33,6 +34,8 @@ class NasHubSensorDescription(SensorEntityDescription):
     order: str = "desc"
     # State is the number of items (like the live lists) instead of the first title
     count_state: bool = False
+    # State is this field of the list's single item (Tdarr's queue counts)
+    stat: str | None = None
 
 
 SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
@@ -60,6 +63,10 @@ SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
         NasHubSensorDescription(key="sent", translation_key="ebooks_sent", list_key="sent"),
         # Counted, not named: "2 books wait for someone to pick a reader"
         NasHubSensorDescription(key="waiting", translation_key="ebooks_waiting", list_key="waiting", count_state=True),
+    ),
+    SERVICE_TDARR: (
+        NasHubSensorDescription(key="transcoding", translation_key="tdarr_transcoding", list_key="transcoding", live=True, order="none"),
+        NasHubSensorDescription(key="queue", translation_key="tdarr_queue", list_key="stats", live=True, stat="queued"),
     ),
 }
 
@@ -116,6 +123,9 @@ class NasHubListSensor(CoordinatorEntity[_HubCoordinator], SensorEntity):
     @property
     def native_value(self) -> str | int | None:
         items = self._items
+        if self.entity_description.stat:
+            # Unknown while the NAS sleeps: the counts are not cached
+            return items[0].get(self.entity_description.stat) if items else None
         if self.entity_description.live or self.entity_description.count_state:
             return len(items)
         if not items:
@@ -125,6 +135,10 @@ class NasHubListSensor(CoordinatorEntity[_HubCoordinator], SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         coordinator = self.coordinator
+        if self.entity_description.stat:
+            counts = {k: v for k, v in (self._items[0] if self._items else {}).items() if k != "id"}
+            return {"service": self.hub.service, "list": self.entity_description.list_key, **counts,
+                    "updated": coordinator.updated, "stale": coordinator.stale, "asleep": coordinator.asleep}
         return {
             "service": self.hub.service,
             "list": self.entity_description.list_key,
