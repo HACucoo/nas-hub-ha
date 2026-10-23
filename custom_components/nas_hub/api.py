@@ -935,6 +935,7 @@ class EbooksClient(BaseClient):
 # ── Tdarr ────────────────────────────────────────────────────────────────────
 
 _EPISODE = re.compile(r"\bS(\d{1,2})E(\d{1,3})\b", re.IGNORECASE)
+_SEASON_DIR = re.compile(r"^(season|staffel|specials)\b", re.IGNORECASE)
 
 
 class TdarrClient(BaseClient):
@@ -965,8 +966,9 @@ class TdarrClient(BaseClient):
         name = parts[-1].rsplit(".", 1)[0] if parts else path
         episode = _EPISODE.search(name)
         if episode:
-            # …/<series>/Season 01/<file>: the series folder names it
-            series = parts[-3] if len(parts) >= 3 else name
+            # …/<series>/Season 01/<file> or …/<series>/<file>: the series folder names it
+            in_season = len(parts) >= 3 and _SEASON_DIR.match(parts[-2])
+            series = parts[-3] if in_season else (parts[-2] if len(parts) >= 2 else name)
             title, media, label = series, "episode", f"S{int(episode[1]):02d}E{int(episode[2]):02d}"
         else:
             title, media, label = (parts[-2] if len(parts) >= 2 else name), "movie", None

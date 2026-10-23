@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 — 2026-10-23
+
+- Tdarr: an episode in a series folder without season folders is named by the series, not by the library folder.
+
 ## 0.7.0 — 2026-10-23
 
 - New service **Tdarr**: sensors "Processing" (what the transcode workers are on, with progress, time left and fps) and "Queue" (files waiting, plus done/failed and health-check counts as attributes). The card shows Tdarr jobs like downloads.
