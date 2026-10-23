@@ -229,6 +229,11 @@
       "refresh": {
         "name": "Refresh"
       }
+    },
+    "switch": {
+      "tdarr_paused": {
+        "name": "Paused"
+      }
     }
   }
 }

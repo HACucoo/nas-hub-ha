@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 — 2026-10-23
+
+- Tdarr: switch "Paused" — on pauses all Tdarr nodes like "Pause all" in Tdarr (running jobs finish, no new ones start), off resumes them. For automations, e.g. pause Tdarr while SABnzbd downloads and unpacks.
+
 ## 0.7.1 — 2026-10-23
 
 - Tdarr: an episode in a series folder without season folders is named by the series, not by the library folder.

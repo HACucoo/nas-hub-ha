@@ -960,6 +960,18 @@ class TdarrClient(BaseClient):
         # The status page needs no key; the database does
         await self._statistics()
 
+    async def _settings(self) -> dict:
+        return await self._post(
+            "/api/v2/cruddb", {"data": {"collection": "SettingsGlobalJSONDB", "mode": "getById", "docID": "globalsettings"}}
+        ) or {}
+
+    async def set_paused(self, paused: bool) -> None:
+        """Pause or resume all nodes, like "Pause all" in Tdarr: running jobs finish, no new ones start."""
+        await self._post("/api/v2/cruddb", {"data": {
+            "collection": "SettingsGlobalJSONDB", "mode": "update", "docID": "globalsettings",
+            "obj": {"pauseAllNodes": bool(paused)},
+        }})
+
     def _job(self, worker_id: str, worker: dict) -> dict:
         path = str(worker.get("file") or "")
         parts = [p for p in path.split("/") if p]
@@ -995,7 +1007,9 @@ class TdarrClient(BaseClient):
         }
 
     async def fetch_live(self) -> dict[str, list]:
-        nodes, stats = await asyncio.gather(self._get("/api/v2/get-nodes"), self._statistics())
+        nodes, stats, settings = await asyncio.gather(
+            self._get("/api/v2/get-nodes"), self._statistics(), self._settings()
+        )
         jobs = [
             self._job(worker_id, worker)
             for node in (nodes or {}).values()
@@ -1011,6 +1025,7 @@ class TdarrClient(BaseClient):
                 "queued": count(1), "done": count(2), "failed": count(3),
                 "health_queued": count(4), "health_failed": count(6),
                 "files": int(stats.get("totalFileCount") or 0),
+                "paused": bool(settings.get("pauseAllNodes")),
             }],
         }
 

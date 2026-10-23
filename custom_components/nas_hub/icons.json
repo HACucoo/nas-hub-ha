@@ -39,6 +39,15 @@
       "refresh": {
         "default": "mdi:refresh"
       }
+    },
+    "switch": {
+      "tdarr_paused": {
+        "default": "mdi:play-pause",
+        "state": {
+          "on": "mdi:pause-circle",
+          "off": "mdi:play-circle"
+        }
+      }
     }
   }
 }

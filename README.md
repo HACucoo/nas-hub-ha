@@ -51,7 +51,7 @@ Until 0.3 this entry received a webhook from a script. An entry from that time s
 
 ### Tdarr
 
-Needs an API key (Tdarr → Tools → API Keys). Two live sensors: **Processing** (the files the transcode workers are on, with progress, time left and fps; series by their folder and episode) and **Queue** (state = files waiting for a transcode; attributes `done`, `failed`, `health_queued`, `health_failed`, `files`). Both are empty/unknown while the NAS sleeps.
+Needs an API key (Tdarr → Tools → API Keys). Two live sensors: **Processing** (the files the transcode workers are on, with progress, time left and fps; series by their folder and episode) and **Queue** (state = files waiting for a transcode; attributes `done`, `failed`, `health_queued`, `health_failed`, `files`). Both are empty/unknown while the NAS sleeps. The switch **Paused** pauses and resumes all Tdarr nodes (running jobs finish, no new ones start) — e.g. for an automation that pauses Tdarr while downloads unpack on the same disks.
 
 ## Card
 

@@ -26,7 +26,7 @@ from .images import ImageCache, image_root
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.BUTTON, Platform.SWITCH]
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 # Static paths can only be registered once per HA run — survives entry reloads
