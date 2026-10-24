@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -19,6 +19,7 @@ from .const import (
     SERVICE_JELLYFIN,
     SERVICE_NAMES,
     SERVICE_RADARR,
+    SERVICE_SCRUTINY,
     SERVICE_SEERR,
     SERVICE_SONARR,
     SERVICE_TDARR,
@@ -36,6 +37,8 @@ class NasHubSensorDescription(SensorEntityDescription):
     count_state: bool = False
     # State is this field of the list's single item (Tdarr's queue counts)
     stat: str | None = None
+    # State is ok/problem: whether any item has status "failed" (Scrutiny's drives)
+    health: bool = False
 
 
 SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
@@ -67,6 +70,12 @@ SENSORS: dict[str, tuple[NasHubSensorDescription, ...]] = {
     SERVICE_TDARR: (
         NasHubSensorDescription(key="transcoding", translation_key="tdarr_transcoding", list_key="transcoding", live=True, order="none"),
         NasHubSensorDescription(key="queue", translation_key="tdarr_queue", list_key="stats", live=True, stat="queued"),
+    ),
+    SERVICE_SCRUTINY: (
+        NasHubSensorDescription(
+            key="drives", translation_key="scrutiny_drives", list_key="drives", order="none", health=True,
+            device_class=SensorDeviceClass.ENUM, options=["ok", "problem"],
+        ),
     ),
 }
 
@@ -123,6 +132,10 @@ class NasHubListSensor(CoordinatorEntity[_HubCoordinator], SensorEntity):
     @property
     def native_value(self) -> str | int | None:
         items = self._items
+        if self.entity_description.health:
+            if not items:
+                return None
+            return "problem" if any(item.get("status") == "failed" for item in items) else "ok"
         if self.entity_description.stat:
             # Unknown while the NAS sleeps: the counts are not cached
             return items[0].get(self.entity_description.stat) if items else None
@@ -139,9 +152,17 @@ class NasHubListSensor(CoordinatorEntity[_HubCoordinator], SensorEntity):
             counts = {k: v for k, v in (self._items[0] if self._items else {}).items() if k != "id"}
             return {"service": self.hub.service, "list": self.entity_description.list_key, **counts,
                     "updated": coordinator.updated, "stale": coordinator.stale, "asleep": coordinator.asleep}
+        extra = {}
+        if self.entity_description.health:
+            # Readable without the item list (which the recorder skips)
+            extra = {
+                "failed": [item["title"] for item in self._items if item.get("status") == "failed"],
+                "temperature_max": max((item["temperature"] for item in self._items if item.get("temperature")), default=None),
+            }
         return {
             "service": self.hub.service,
             "list": self.entity_description.list_key,
+            **extra,
             "order": self.entity_description.order,
             "count": len(self._items),
             "updated": coordinator.updated,

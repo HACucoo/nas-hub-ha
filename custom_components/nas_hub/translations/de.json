@@ -11,7 +11,8 @@
           "radarr": "Radarr",
           "seerr": "Seerr (Wünsche)",
           "ebooks": "E-Book-Versand (ebook-sender)",
-          "tdarr": "Tdarr"
+          "tdarr": "Tdarr",
+          "scrutiny": "Scrutiny (Plattenzustand)"
         }
       },
       "jellyfin": {
@@ -119,6 +120,18 @@
           "url": "Wie Home Assistant den Server erreicht, z. B. http://nas.local:8265",
           "public_url": "Für Links in den Karten. Leer = lokale Adresse."
         }
+      },
+      "scrutiny": {
+        "title": "Scrutiny",
+        "description": "Die Scrutiny-Weboberfläche (Hub- oder Omnibus-Image), z. B. http://192.168.1.10:8080. Sie läuft ohne Anmeldung, daher kein Schlüssel. Ein Sensor sagt, ob alle Platten gesund sind; die Attribute listen jede Platte.",
+        "data": {
+          "url": "Adresse (lokal)",
+          "public_url": "Öffentliche Adresse (optional)"
+        },
+        "data_description": {
+          "url": "Wie Home Assistant die Weboberfläche erreicht",
+          "public_url": "Für Links auf die Plattenseiten. Leer = lokale Adresse."
+        }
       }
     },
     "error": {
@@ -223,6 +236,13 @@
       },
       "tdarr_queue": {
         "name": "Warteschlange"
+      },
+      "scrutiny_drives": {
+        "name": "Festplatten",
+        "state": {
+          "ok": "OK",
+          "problem": "Problem"
+        }
       }
     },
     "button": {

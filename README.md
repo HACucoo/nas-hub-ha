@@ -11,6 +11,7 @@ What is new, next and running on the media services of a home NAS — as sensors
 | Seerr | latest requests with their state; notifies the requester when a wish arrives | — |
 | E-book sending | books the ebook-sender container sent, books waiting for a recipient | — |
 | Tdarr | — | what the workers transcode (progress, time left), queue counts |
+| Scrutiny | SMART health of every drive: ok/problem, temperature, power-on hours | — |
 
 ## How it behaves while the NAS sleeps
 
@@ -52,6 +53,10 @@ Until 0.3 this entry received a webhook from a script. An entry from that time s
 ### Tdarr
 
 Needs an API key (Tdarr → Tools → API Keys). Two live sensors: **Processing** (the files the transcode workers are on, with progress, time left and fps; series by their folder and episode) and **Queue** (state = files waiting for a transcode; attributes `done`, `failed`, `health_queued`, `health_failed`, `files`). Both are empty/unknown while the NAS sleeps. The switch **Paused** pauses and resumes all Tdarr nodes (running jobs finish, no new ones start) — e.g. for an automation that pauses Tdarr while downloads unpack on the same disks.
+
+### Scrutiny
+
+Reads the [Scrutiny](https://github.com/AnalogJ/scrutiny) web app (hub or omnibus image); only its address is needed, it runs without a login. One sensor **Drives**: state `ok` or `problem` — a drive counts as failed by the same rule as Scrutiny's dashboard (its *status threshold* setting: smartctl, Scrutiny's own thresholds or both). Attributes `failed` (the failing drives by name) and `temperature_max`; `items` holds every drive with model, size, device, temperature, power-on hours, the time of the last measurement and a link to its Scrutiny page. Scrutiny measures once a day, so the drives are a cached list like the others and keep their last state while the NAS sleeps.
 
 ## Card
 

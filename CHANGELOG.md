@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0 — 2026-10-24
+
+- New service **Scrutiny** (SMART drive health): sensor "Drives" with the state `ok`/`problem`, the failing drives and the highest temperature as attributes, and every drive (model, size, temperature, power-on hours, last measurement, link) in `items`. Failed means what Scrutiny's dashboard shows as failed, following its status-threshold setting. No API key — Scrutiny has no login.
+
 ## 0.9.0 — 2026-10-24
 
 - Audiobookshelf "Now playing" also shows apps that play a downloaded copy, like Plappa: they open no listening session and only sync the position every few seconds, so a book whose progress moved within the last two minutes counts as playing. Reading other users' progress needs an admin API key; with a user key only open sessions show, as before.

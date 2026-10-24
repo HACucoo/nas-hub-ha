@@ -4,7 +4,7 @@ Every client turns its service's answers into the same flat item dicts, so
 the sensors and the card never need to know where an item came from:
 
     id        stable id, unique across services ("jf-…", "sonarr-…")
-    kind      movie | series | episode | audiobook | ebook | download | session
+    kind      movie | series | episode | audiobook | ebook | download | session | transcode | drive
     title     main line
     subtitle  second line (tagline, episode title, author) or None
     episode   "S02E05", "S02E01–E08" or None
@@ -1093,6 +1093,87 @@ class TdarrClient(BaseClient):
         }
 
 
+# ── Scrutiny ─────────────────────────────────────────────────────────────────
+
+# device_status is a bit field: 1 = smartctl says failed, 2 = Scrutiny's own
+# thresholds (Backblaze failure rates) say failed
+SCRUTINY_FAILED_SMART = 1
+SCRUTINY_FAILED_SCRUTINY = 2
+
+
+def _size(capacity: Any) -> str | None:
+    try:
+        size = float(capacity)
+    except (TypeError, ValueError):
+        return None
+    if size >= 1e12:
+        return f"{size / 1e12:.0f} TB"
+    return f"{size / 1e9:.0f} GB" if size > 0 else None
+
+
+class ScrutinyClient(BaseClient):
+    """Scrutiny: SMART health of the NAS's drives, one item per drive.
+
+    Scrutiny measures once a day, so the drives are a list (cached while the
+    NAS sleeps), not live data. A drive counts as failed by the same rule as
+    Scrutiny's dashboard: its "status threshold" setting says whether smartctl,
+    Scrutiny's own thresholds or both count.
+    """
+
+    list_keys = ("drives",)
+
+    @property
+    def auth_headers(self) -> dict[str, str]:
+        # Scrutiny has no login
+        return {}
+
+    async def validate(self) -> None:
+        await self._get("/api/health")
+
+    def _drive(self, wwn: str, entry: dict, threshold: int) -> dict:
+        device = entry.get("device") or {}
+        smart = entry.get("smart") or {}
+        status = int(device.get("device_status") or 0)
+        failed_by = [name for bit, name in ((SCRUTINY_FAILED_SMART, "smart"), (SCRUTINY_FAILED_SCRUTINY, "scrutiny"))
+                     if status & bit & threshold]
+        name = device.get("device_name") or wwn
+        temp = smart.get("temp")
+        return {
+            "id": f"scrutiny-{wwn}",
+            "kind": "drive",
+            "title": device.get("device_label") or device.get("model_name") or name,
+            "subtitle": " · ".join(filter(None, [_size(device.get("capacity")), f"/dev/{name}"])),
+            "episode": None,
+            "date": smart.get("collector_date"),
+            "date_type": "checked",
+            "meta": f"{temp} °C" if temp else None,
+            "status": "failed" if failed_by else "passed",
+            "failed_by": failed_by,
+            "device": name,
+            "model": device.get("model_name"),
+            "protocol": device.get("device_protocol"),
+            "temperature": temp,
+            "power_on_hours": smart.get("power_on_hours"),
+            "progress": None,
+            "rating": None,
+            "genres": [],
+            "link": f"{self.public_url}/web/device/{wwn}",
+            "image_src": [],
+        }
+
+    async def fetch_lists(self, count: int, days_ahead: int) -> dict[str, list]:
+        summary, settings = await asyncio.gather(self._get("/api/summary"), self._get("/api/settings"))
+        threshold = int(((settings or {}).get("settings") or {}).get("metrics", {}).get("status_threshold") or 3)
+        drives = [
+            self._drive(wwn, entry, threshold)
+            for wwn, entry in (((summary or {}).get("data") or {}).get("summary") or {}).items()
+            if not (entry.get("device") or {}).get("archived")
+        ]
+        # Every drive, not the first `count`: a list that drops one could hide a failing drive
+        drives.sort(key=lambda d: d["device"])
+        return {"drives": drives}
+
+
 CLIENTS: dict[str, type[BaseClient]] = {
     "jellyfin": JellyfinClient,
     "audiobookshelf": AudiobookshelfClient,
@@ -1101,4 +1182,5 @@ CLIENTS: dict[str, type[BaseClient]] = {
     "seerr": SeerrClient,
     "ebooks": EbooksClient,
     "tdarr": TdarrClient,
+    "scrutiny": ScrutinyClient,
 }

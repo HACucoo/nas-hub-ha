@@ -33,6 +33,13 @@
       },
       "ebooks_waiting": {
         "default": "mdi:book-clock-outline"
+      },
+      "scrutiny_drives": {
+        "default": "mdi:harddisk",
+        "state": {
+          "ok": "mdi:harddisk",
+          "problem": "mdi:harddisk-remove"
+        }
       }
     },
     "button": {

@@ -11,7 +11,8 @@
           "radarr": "Radarr",
           "seerr": "Seerr (requests)",
           "ebooks": "E-book sending (ebook-sender)",
-          "tdarr": "Tdarr"
+          "tdarr": "Tdarr",
+          "scrutiny": "Scrutiny (drive health)"
         }
       },
       "jellyfin": {
@@ -119,6 +120,18 @@
           "url": "How Home Assistant reaches the server, e.g. http://nas.local:8265",
           "public_url": "For links in the cards. Empty = local address."
         }
+      },
+      "scrutiny": {
+        "title": "Scrutiny",
+        "description": "The Scrutiny web app (hub or omnibus image), e.g. http://192.168.1.10:8080. It runs without a login, so there is no key. One sensor tells whether all drives are healthy; the attributes list every drive.",
+        "data": {
+          "url": "Address (local)",
+          "public_url": "Public address (optional)"
+        },
+        "data_description": {
+          "url": "How Home Assistant reaches the web app",
+          "public_url": "For links to the drive pages. Empty = local address."
+        }
       }
     },
     "error": {
@@ -223,6 +236,13 @@
       },
       "tdarr_queue": {
         "name": "Queue"
+      },
+      "scrutiny_drives": {
+        "name": "Drives",
+        "state": {
+          "ok": "OK",
+          "problem": "Problem"
+        }
       }
     },
     "button": {

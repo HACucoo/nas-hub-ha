@@ -52,6 +52,7 @@ from .const import (
     SERVICE_JELLYFIN,
     SERVICE_NAMES,
     SERVICE_RADARR,
+    SERVICE_SCRUTINY,
     SERVICE_SEERR,
     SERVICE_SONARR,
     SERVICE_TDARR,
@@ -61,8 +62,8 @@ URL_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
 KEY_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
-# Services that run in the home network without a login (ebook-sender)
-KEYLESS = {SERVICE_EBOOKS}
+# Services that run in the home network without a login (ebook-sender, Scrutiny)
+KEYLESS = {SERVICE_EBOOKS, SERVICE_SCRUTINY}
 
 
 def _service_schema(service: str, defaults: Mapping[str, Any]) -> vol.Schema:
@@ -106,7 +107,7 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="user",
-            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_SEERR, SERVICE_EBOOKS, SERVICE_TDARR],
+            menu_options=[SERVICE_JELLYFIN, SERVICE_AUDIOBOOKSHELF, SERVICE_SONARR, SERVICE_RADARR, SERVICE_SEERR, SERVICE_EBOOKS, SERVICE_TDARR, SERVICE_SCRUTINY],
         )
 
     async def _service_step(self, service: str, user_input: dict[str, Any] | None) -> ConfigFlowResult:
@@ -147,6 +148,9 @@ class NasHubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_tdarr(self, user_input=None) -> ConfigFlowResult:
         return await self._service_step(SERVICE_TDARR, user_input)
+
+    async def async_step_scrutiny(self, user_input=None) -> ConfigFlowResult:
+        return await self._service_step(SERVICE_SCRUTINY, user_input)
 
     # ── change URL or key later ──
 
@@ -253,14 +257,15 @@ class NasHubOptionsFlow(OptionsFlow):
                     data[OPT_NOTIFY_MAP] = opts.get(OPT_NOTIFY_MAP, {})
             return self.async_create_entry(title="", data=data)
 
-        schema: dict[Any, Any] = {
-            vol.Required(OPT_ITEM_COUNT, default=opts.get(OPT_ITEM_COUNT, DEFAULT_ITEM_COUNT)): _number(1, 30),
-        }
+        schema: dict[Any, Any] = {}
+        if service != SERVICE_SCRUTINY:
+            # Scrutiny always lists every drive
+            schema[vol.Required(OPT_ITEM_COUNT, default=opts.get(OPT_ITEM_COUNT, DEFAULT_ITEM_COUNT))] = _number(1, 30)
         list_default = DEFAULT_LIST_MINUTES_BY_SERVICE.get(service, DEFAULT_LIST_MINUTES)
         schema[vol.Required(OPT_LIST_MINUTES, default=opts.get(OPT_LIST_MINUTES, list_default))] = _number(
             1 if service in KEYLESS else 5, 1440, unit="min"
         )
-        if service not in (SERVICE_SEERR, SERVICE_EBOOKS):
+        if service not in (SERVICE_SEERR, SERVICE_EBOOKS, SERVICE_SCRUTINY):
             schema[vol.Required(OPT_LIVE_SECONDS, default=opts.get(OPT_LIVE_SECONDS, DEFAULT_LIVE_SECONDS))] = _number(15, 600, unit="s")
         if service in DEFAULT_DAYS_AHEAD:
             schema[vol.Required(OPT_DAYS_AHEAD, default=opts.get(OPT_DAYS_AHEAD, DEFAULT_DAYS_AHEAD[service]))] = _number(1, 365, unit="d")
