@@ -1138,9 +1138,21 @@ class ScrutinyClient(BaseClient):
                      if status & bit & threshold]
         name = device.get("device_name") or wwn
         temp = smart.get("temp")
+        protocol = device.get("device_protocol")
+        # SATA SSDs and some HDDs (WD Green "IntelliPower") both report no
+        # rotation rate; only call it an SSD when the model says so
+        if protocol == "NVMe":
+            media = "nvme"
+        elif int(device.get("rotational_speed") or 0) > 0:
+            media = "hdd"
+        elif "SSD" in str(device.get("model_name") or "").upper():
+            media = "ssd"
+        else:
+            media = "disk"
         return {
             "id": f"scrutiny-{wwn}",
             "kind": "drive",
+            "media": media,
             "title": device.get("device_label") or device.get("model_name") or name,
             "subtitle": " · ".join(filter(None, [_size(device.get("capacity")), f"/dev/{name}"])),
             "episode": None,
@@ -1151,7 +1163,7 @@ class ScrutinyClient(BaseClient):
             "failed_by": failed_by,
             "device": name,
             "model": device.get("model_name"),
-            "protocol": device.get("device_protocol"),
+            "protocol": protocol,
             "temperature": temp,
             "power_on_hours": smart.get("power_on_hours"),
             "progress": None,

@@ -24,7 +24,7 @@
 
 const STRINGS = {
   de: {
-    kind: { movie: 'Film', series: 'Serie', episode: 'Serie', audiobook: 'Hörbuch', ebook: 'Buch' },
+    kind: { movie: 'Film', series: 'Serie', episode: 'Serie', audiobook: 'Hörbuch', ebook: 'Buch', hdd: 'HDD', ssd: 'SSD', nvme: 'NVMe', disk: 'Platte' },
     fps: n => `${n} fps`,
     dateType: { digital: 'Digital', physical: 'Disc', cinema: 'Kino' },
     today: 'Heute', tomorrow: 'Morgen', yesterday: 'Gestern',
@@ -38,13 +38,15 @@ const STRINGS = {
     sentTo: r => `an ${r}`,
     ebookStatus: { unassigned: 'wartet auf Zuordnung', error: 'Fehler', too_large: 'zu groß' },
     readBy: n => `gelesen von ${n}`,
-    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', waiting: 'Nichts wartet', requests: 'Keine Wünsche', transcoding: 'Tdarr hat gerade nichts zu tun', other: 'Noch nichts da' },
+    drive: { passed: 'OK', failed: 'defekt' },
+    runtime: h => (h < 8766 ? `${h.toLocaleString('de')} h` : `${(h / 8766).toLocaleString('de', { maximumFractionDigits: 1 })} J.`),
+    empty: { upcoming: 'Nichts angekündigt', now_playing: 'Gerade läuft nichts', queue: 'Keine Downloads', in_progress: 'Nichts angefangen', sent: 'Noch nichts verschickt', waiting: 'Nichts wartet', requests: 'Keine Wünsche', transcoding: 'Tdarr hat gerade nichts zu tun', drives: 'Keine Laufwerke gemeldet', other: 'Noch nichts da' },
     request: { available: 'Verfügbar', partial: 'Teilweise da', processing: 'Wird besorgt', pending: 'Wartet auf Freigabe', declined: 'Abgelehnt' },
     stand: t => `Stand ${t}`, asleep: 'NAS schläft', unreachable: 'nicht erreichbar',
     noEntities: 'Bitte im Karteneditor mindestens einen NAS-Hub-Sensor wählen.',
   },
   en: {
-    kind: { movie: 'Movie', series: 'TV', episode: 'TV', audiobook: 'Audiobook', ebook: 'Book' },
+    kind: { movie: 'Movie', series: 'TV', episode: 'TV', audiobook: 'Audiobook', ebook: 'Book', hdd: 'HDD', ssd: 'SSD', nvme: 'NVMe', disk: 'Drive' },
     fps: n => `${n} fps`,
     dateType: { digital: 'Digital', physical: 'Disc', cinema: 'Cinema' },
     today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday',
@@ -58,7 +60,9 @@ const STRINGS = {
     sentTo: r => `to ${r}`,
     ebookStatus: { unassigned: 'needs a recipient', error: 'error', too_large: 'too large' },
     readBy: n => `read by ${n}`,
-    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', waiting: 'Nothing waiting', requests: 'No requests', transcoding: 'Tdarr is idle', other: 'Nothing here yet' },
+    drive: { passed: 'OK', failed: 'failed' },
+    runtime: h => (h < 8766 ? `${h.toLocaleString('en')} h` : `${(h / 8766).toLocaleString('en', { maximumFractionDigits: 1 })} yrs`),
+    empty: { upcoming: 'Nothing announced', now_playing: 'Nothing playing', queue: 'No downloads', in_progress: 'Nothing started', sent: 'Nothing sent yet', waiting: 'Nothing waiting', requests: 'No requests', transcoding: 'Tdarr is idle', drives: 'No drives reported', other: 'Nothing here yet' },
     request: { available: 'Available', partial: 'Partly here', processing: 'Processing', pending: 'Awaiting approval', declined: 'Declined' },
     stand: t => `as of ${t}`, asleep: 'NAS asleep', unreachable: 'unreachable',
     noEntities: 'Pick at least one NAS Hub sensor in the card editor.',
@@ -72,7 +76,13 @@ const KIND_STYLE = {
   episode:   { color: '#6a1b9a', icon: 'mdi:television-classic' },
   audiobook: { color: '#00796b', icon: 'mdi:headphones' },
   ebook:     { color: '#795548', icon: 'mdi:book-open-page-variant' },
+  hdd:       { color: '#455a64', icon: 'mdi:harddisk' },
+  disk:      { color: '#455a64', icon: 'mdi:harddisk' },
+  ssd:       { color: '#37474f', icon: 'mdi:expansion-card-variant' },
+  nvme:      { color: '#37474f', icon: 'mdi:memory' },
 };
+// A failing drive turns its thumbnail red, so it stands out in a list of grey ones
+const FAILED_COLOR = '#c62828';
 
 function esc(value) {
   const el = document.createElement('span');
@@ -231,6 +241,13 @@ class NasHubCard extends HTMLElement {
       // Tdarr: progress, time left (or the step it is at), speed
       const pct = view.progress != null ? `${Math.round(view.progress * 100)} %` : '';
       view.meta.push(...[pct, item.eta ? S.left(formatTimeleft(item.eta)) : item.status, item.fps ? S.fps(item.fps) : ''].filter(Boolean));
+    } else if (item.kind === 'drive') {
+      // Scrutiny: health, temperature, runtime; the date is the last measurement
+      const failed = item.status === 'failed';
+      if (failed) view.color = FAILED_COLOR;
+      view.chips.push({ text: S.drive[item.status] || item.status || '', accent: !failed, warn: failed });
+      if (item.temperature) view.meta.push({ icon: 'mdi:thermometer', text: `${item.temperature} °C` });
+      if (typeof item.power_on_hours === 'number') view.meta.push({ icon: 'mdi:timer-outline', text: S.runtime(item.power_on_hours) });
     } else if (item.kind === 'session') {
       if (item.meta) view.meta.push(item.meta);
       if (item.paused) view.chips.push({ text: S.paused });

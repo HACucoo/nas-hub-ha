@@ -56,7 +56,7 @@ Needs an API key (Tdarr → Tools → API Keys). Two live sensors: **Processing*
 
 ### Scrutiny
 
-Reads the [Scrutiny](https://github.com/AnalogJ/scrutiny) web app (hub or omnibus image); only its address is needed, it runs without a login. One sensor **Drives**: state `ok` or `problem` — a drive counts as failed by the same rule as Scrutiny's dashboard (its *status threshold* setting: smartctl, Scrutiny's own thresholds or both). Attributes `failed` (the failing drives by name) and `temperature_max`; `items` holds every drive with model, size, device, temperature, power-on hours, the time of the last measurement and a link to its Scrutiny page. Scrutiny measures once a day, so the drives are a cached list like the others and keep their last state while the NAS sleeps.
+Reads the [Scrutiny](https://github.com/AnalogJ/scrutiny) web app (hub or omnibus image); only its address is needed, it runs without a login. One sensor **Drives**: state `ok` or `problem` — a drive counts as failed by the same rule as Scrutiny's dashboard (its *status threshold* setting: smartctl, Scrutiny's own thresholds or both). Attributes `failed` (the failing drives by name) and `temperature_max`; `items` holds every drive with model, size, device, temperature, power-on hours, the time of the last measurement and a link to its Scrutiny page. The card shows them as rows (`entities: [sensor.scrutiny_drives]`, `layout: rows`). Scrutiny measures once a day, so the drives are a cached list like the others and keep their last state while the NAS sleeps.
 
 ## Card
 

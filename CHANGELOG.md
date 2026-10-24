@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 — 2026-10-24
+
+- Card: Scrutiny drives as rows — HDD, SSD or NVMe icon (red when failing), an "OK"/"failed" chip, temperature and runtime; the date on the right is the last measurement.
+- Scrutiny items carry `media`: `hdd` (reports a rotation rate), `ssd` (no rotation rate and "SSD" in the model), `nvme` or `disk` (no rotation rate and no hint — some HDDs like WD Green report none either).
+
 ## 0.10.0 — 2026-10-24
 
 - New service **Scrutiny** (SMART drive health): sensor "Drives" with the state `ok`/`problem`, the failing drives and the highest temperature as attributes, and every drive (model, size, temperature, power-on hours, last measurement, link) in `items`. Failed means what Scrutiny's dashboard shows as failed, following its status-threshold setting. No API key — Scrutiny has no login.
