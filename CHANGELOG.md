@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0 — 2026-10-24
+
+- Audiobookshelf "Now playing" also shows apps that play a downloaded copy, like Plappa: they open no listening session and only sync the position every few seconds, so a book whose progress moved within the last two minutes counts as playing. Reading other users' progress needs an admin API key; with a user key only open sessions show, as before.
+
 ## 0.8.0 — 2026-10-23
 
 - Tdarr: switch "Paused" — on pauses all Tdarr nodes like "Pause all" in Tdarr (running jobs finish, no new ones start), off resumes them. For automations, e.g. pause Tdarr while SABnzbd downloads and unpacks.

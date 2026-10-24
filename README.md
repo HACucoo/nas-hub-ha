@@ -7,7 +7,7 @@ What is new, next and running on the media services of a home NAS — as sensors
 | Jellyfin | newly added movies and series (series grouped: "S14E08", "3 new episodes") | now playing, with direct play / transcoding |
 | Sonarr | upcoming episodes (a season dropped at once is one row) | download queue |
 | Radarr | upcoming releases (digital, disc, cinema) | download queue |
-| Audiobookshelf | new audiobooks, continue listening | open listening sessions |
+| Audiobookshelf | new audiobooks, continue listening | open listening sessions, and apps playing a downloaded copy (e.g. Plappa) by their synced position — the latter needs an admin API key |
 | Seerr | latest requests with their state; notifies the requester when a wish arrives | — |
 | E-book sending | books the ebook-sender container sent, books waiting for a recipient | — |
 | Tdarr | — | what the workers transcode (progress, time left), queue counts |

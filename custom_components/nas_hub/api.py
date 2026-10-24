@@ -560,12 +560,19 @@ class RadarrClient(ArrClient):
 
 # ── Audiobookshelf ───────────────────────────────────────────────────────────
 
+# Listening progress synced this recently means the book is playing
+PROGRESS_PLAYING_MS = 120 * 1000
+
 
 class AudiobookshelfClient(BaseClient):
     """Audiobookshelf: new audiobooks, continue listening, open sessions."""
 
     list_keys = ("new", "in_progress")
     live_keys = ("now_playing",)
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._authors: dict[str, str | None] = {}
 
     @property
     def auth_headers(self) -> dict[str, str]:
@@ -645,17 +652,72 @@ class AudiobookshelfClient(BaseClient):
 
         return {"new": new[:count], "in_progress": listening[:count]}
 
+    async def _progress_playing(self, now_ms: float, covered: set[tuple]) -> list[dict]:
+        """Playback apps that play a downloaded copy (Plappa) open no session;
+        they only sync the listening position, every few seconds while playing.
+        Reading other users' progress needs an admin key; without one this
+        stays empty."""
+        try:
+            users = (await self._get("/api/users")).get("users", [])
+        except AuthError:
+            return []
+        details = await asyncio.gather(*(
+            self._get(f"/api/users/{user['id']}") for user in users if user.get("isActive", True)
+        ))
+        items = []
+        for user in details:
+            name = user.get("username")
+            for prog in user.get("mediaProgress", []):
+                item_id = prog.get("libraryItemId")
+                duration = prog.get("duration") or 0
+                if (
+                    now_ms - (prog.get("lastUpdate") or 0) > PROGRESS_PLAYING_MS
+                    or prog.get("isFinished")
+                    or not duration  # e-book reading also moves progress
+                    or (name, item_id) in covered
+                ):
+                    continue
+                if item_id not in self._authors:
+                    try:
+                        meta = ((await self._get(f"/api/items/{item_id}", {"minified": 1})).get("media") or {}).get("metadata") or {}
+                    except ServiceError:
+                        meta = {}
+                    self._authors[item_id] = ", ".join(a.get("name") for a in meta.get("authors") or [] if a.get("name")) or None
+                items.append({
+                    "id": f"abs-progress-{name}-{item_id}",
+                    "kind": "session",
+                    "media": "audiobook",
+                    "title": prog.get("displayTitle"),
+                    "subtitle": self._authors[item_id],
+                    "episode": None,
+                    "date": None,
+                    "date_type": None,
+                    "meta": name,
+                    "user": name,
+                    "paused": False,
+                    "play_method": None,
+                    "progress": round((prog.get("currentTime") or 0) / duration, 3),
+                    "rating": None,
+                    "genres": [],
+                    "link": f"{self.public_url}/item/{item_id}",
+                    "image_src": self._cover(item_id),
+                })
+        return items
+
     async def fetch_live(self) -> dict[str, list]:
         data = await self._get("/api/sessions/open")
         # The app syncs about every 15 s while playing; a session not touched
         # for five minutes is paused or the app is gone
-        cutoff = (_utc_now().timestamp() - 300) * 1000
+        now_ms = _utc_now().timestamp() * 1000
+        cutoff = now_ms - 300 * 1000
         items = []
+        covered = set()
         for sess in (data or {}).get("sessions", []):
             if (sess.get("updatedAt") or 0) < cutoff:
                 continue
             duration = sess.get("duration") or 0
             user = (sess.get("user") or {}).get("username")
+            covered.add((user, sess.get("libraryItemId")))
             device = (sess.get("deviceInfo") or {})
             device_name = device.get("deviceName") or device.get("clientName")
             items.append({
@@ -677,6 +739,7 @@ class AudiobookshelfClient(BaseClient):
                 "link": f"{self.public_url}/item/{sess.get('libraryItemId')}",
                 "image_src": self._cover(sess.get("libraryItemId")),
             })
+        items += await self._progress_playing(now_ms, covered)
         return {"now_playing": items}
 
 
