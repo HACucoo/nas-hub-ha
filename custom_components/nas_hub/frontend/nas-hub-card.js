@@ -15,6 +15,9 @@
  *   relative: true         <- "Heute", "Morgen", "vor 2 Tagen" on the right
  *   open_links: false      <- tapping an item opens it in Jellyfin, Sonarr, …
  *   empty_text: "…"        <- shown when every list is empty
+ *   group_by: user         <- one card per user (Läuft gerade from Jellyfin and
+ *                             Audiobookshelf), headed with the user's name
+ *   hide_empty: false      <- no card at all while every list is empty
  *   lang: "de"             <- "de" or "en" (default: Home Assistant's language)
  * Everything except lang can be set in the visual card editor.
  *
@@ -348,34 +351,61 @@ class NasHubCard extends HTMLElement {
     return `<div class="footer"><ha-icon icon="${asleep ? 'mdi:sleep' : 'mdi:lan-disconnect'}"></ha-icon>${esc(parts.join(' · '))}</div>`;
   }
 
+  /** Items split by user, in order of first appearance: [[name, items], …] */
+  _groups(items) {
+    const groups = new Map();
+    for (const item of items) {
+      const name = item.user || '—';
+      const key = name.toLowerCase();
+      if (!groups.has(key)) groups.set(key, [name.charAt(0).toUpperCase() + name.slice(1), []]);
+      // The card already says whose it is: drop the name from "stephan · Fire TV"
+      const meta = (item.meta || '').split(' · ').filter(p => p.toLowerCase() !== key).join(' · ');
+      groups.get(key)[1].push({ ...item, meta });
+    }
+    return [...groups.values()];
+  }
+
+  _card(layout, title, content, footer) {
+    return `
+      <ha-card class="${layout}${this._config.open_links ? ' links' : ''}${this._isMuted ? ' muted' : ''}">
+        ${title ? `<div class="title">${esc(title)}</div>` : ''}
+        <div class="list">${content}</div>
+        ${footer}
+      </ha-card>`;
+  }
+
   _render() {
     if (!this._config || !this._hass) return;
     const lang = this._lang();
     const S = STRINGS[lang];
     const layout = this._config.layout === 'rows' ? 'rows' : 'tiles';
+    const asHtml = views => views.map(v => (layout === 'rows' ? this._row(v) : this._tile(v))).join('');
 
-    let content;
-    let footer = '';
+    let cards;
     if (!this._config.entities.length) {
-      content = `<div class="empty-note">${esc(S.noEntities)}</div>`;
+      cards = this._card(layout, this._config.title, `<div class="empty-note">${esc(S.noEntities)}</div>`, '');
     } else {
       const { states, items, list } = this._collect();
       this._isMuted = this._muted(list);
-      const views = items.map(i => this._view(i, S, lang));
-      content = views.length
-        ? views.map(v => (layout === 'rows' ? this._row(v) : this._tile(v))).join('')
-        : `<div class="empty-note">${esc(this._config.empty_text || S.empty[list] || S.empty.other)}</div>`;
-      footer = this._footer(states, S, lang);
-      this._count = views.length;
+      this._count = items.length;
+      // hide_empty: nothing at all, so a swipe page or stack only shows what is playing
+      this.style.display = this._config.hide_empty && !items.length ? 'none' : '';
+      const footer = this._footer(states, S, lang);
+      if (this._config.group_by === 'user' && items.length) {
+        const prefix = this._config.title ? `${this._config.title} · ` : '';
+        cards = this._groups(items)
+          .map(([name, group]) => this._card(layout, prefix + name, asHtml(group.map(i => this._view(i, S, lang))), ''))
+          .join('') + footer;
+      } else {
+        const views = items.map(i => this._view(i, S, lang));
+        const content = views.length
+          ? asHtml(views)
+          : `<div class="empty-note">${esc(this._config.empty_text || S.empty[list] || S.empty.other)}</div>`;
+        cards = this._card(layout, this._config.title, content, footer);
+      }
     }
 
-    this.shadowRoot.innerHTML = `
-      <style>${CARD_CSS}</style>
-      <ha-card class="${layout}${this._config.open_links ? ' links' : ''}${this._isMuted ? ' muted' : ''}">
-        ${this._config.title ? `<div class="title">${esc(this._config.title)}</div>` : ''}
-        <div class="list">${content}</div>
-        ${footer}
-      </ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${CARD_CSS}</style><div class="cards">${cards}</div>`;
   }
 
   getCardSize() {
@@ -480,6 +510,8 @@ const CARD_CSS = `
     font-size: 0.75rem; color: var(--secondary-text-color);
   }
   .footer ha-icon { --mdc-icon-size: 15px; }
+  /* group_by: one ha-card per user, stacked like the cards of a vertical stack */
+  .cards { display: flex; flex-direction: column; gap: var(--vertical-stack-card-gap, var(--stack-card-gap, 8px)); }
 `;
 
 // ── Visual editor ───────────────────────────────────────────────────────────
@@ -500,6 +532,10 @@ const EDITOR_LABELS = {
     relative: 'Heute / Morgen / vor x Tagen rechts zeigen',
     open_links: 'Tippen öffnet den Eintrag im Dienst',
     empty_text: 'Text, wenn nichts da ist (leer = Standard)',
+    group_by: 'Aufteilen',
+    group_by_none: 'Nicht aufteilen',
+    group_by_user: 'Je Benutzer eine Karte',
+    hide_empty: 'Ausblenden, wenn nichts da ist',
   },
   en: {
     entities: 'Lists (NAS Hub sensors, merged)',
@@ -516,6 +552,10 @@ const EDITOR_LABELS = {
     relative: 'Show today / tomorrow / x days ago on the right',
     open_links: 'Tapping opens the item in its service',
     empty_text: 'Text when there is nothing (empty = default)',
+    group_by: 'Split',
+    group_by_none: 'Do not split',
+    group_by_user: 'One card per user',
+    hide_empty: 'Hide when there is nothing',
   },
 };
 
@@ -536,10 +576,15 @@ function editorSchema(L) {
     { name: 'relative', selector: { boolean: {} } },
     { name: 'open_links', selector: { boolean: {} } },
     { name: 'empty_text', selector: { text: {} } },
+    {
+      name: 'group_by',
+      selector: { select: { mode: 'dropdown', options: ['none', 'user'].map(value => ({ value, label: L[`group_by_${value}`] })) } },
+    },
+    { name: 'hide_empty', selector: { boolean: {} } },
   ];
 }
 
-const EDITOR_DEFAULTS = { layout: 'tiles', image_style: 'auto', max_items: 8, show_genres: true, relative: true, open_links: false };
+const EDITOR_DEFAULTS = { layout: 'tiles', image_style: 'auto', max_items: 8, show_genres: true, relative: true, open_links: false, group_by: 'none', hide_empty: false };
 
 class NasHubCardEditor extends HTMLElement {
   setConfig(config) {

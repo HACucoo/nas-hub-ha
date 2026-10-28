@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0 — 2026-10-28
+
+- Card: `group_by: user` shows one card per user, headed with the user's name (and the title in front, if set) — e.g. "Läuft gerade" from Jellyfin and Audiobookshelf as one card for each person watching or listening.
+- Card: `hide_empty: true` shows no card at all while every list is empty, so a stack or swipe page only shows what is playing. Both can be set in the visual editor.
+
 ## 0.11.0 — 2026-10-24
 
 - Card: Scrutiny drives as rows — HDD, SSD or NVMe icon (red when failing), an "OK"/"failed" chip, temperature and runtime; the date on the right is the last measurement.
