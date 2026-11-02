@@ -213,6 +213,9 @@ class JellyfinClient(BaseClient):
                 "Limit": count * 25,
                 "Fields": "DateCreated,PremiereDate",
                 "EnableImages": "false",
+                # Deleting files turns their episodes into "missing" placeholders,
+                # created anew — they would read as freshly added
+                "IsMissing": "false",
             }),
         )
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1 — 2026-11-02
+
+- Jellyfin "Newly added": deleted episodes no longer show up as new. Jellyfin keeps a "missing" placeholder for each deleted file and stamps it with the deletion time, so deleting watched episodes made the series look freshly added; those placeholders are now skipped.
+
 ## 0.12.0 — 2026-10-28
 
 - Card: `group_by: user` shows one card per user, headed with the user's name (and the title in front, if set) — e.g. "Läuft gerade" from Jellyfin and Audiobookshelf as one card for each person watching or listening.
