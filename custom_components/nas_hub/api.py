@@ -74,6 +74,8 @@ def _parse_iso(value: Any) -> datetime | None:
 
 # A series added within this span of its newest episode came in as a whole
 NEW_SERIES_WINDOW = timedelta(days=1)
+# Collections Jellyfin mixes into the newest films, fetched on top and dropped
+COLLECTION_ROOM = 50
 # Episodes that aired this recently are new even if a re-scan touched the rest
 RECENT_AIRING = timedelta(days=60)
 
@@ -200,7 +202,10 @@ class JellyfinClient(BaseClient):
                 "IncludeItemTypes": "Movie",
                 "SortBy": "DateCreated",
                 "SortOrder": "Descending",
-                "Limit": count,
+                # Jellyfin (12.4) returns collections here too, and ignores
+                # ExcludeItemTypes/IsFolder/MediaTypes: they are dropped below,
+                # with room for a few dozen of them ahead of the films
+                "Limit": count + COLLECTION_ROOM,
                 "Fields": fields,
             }),
             # Generous: a whole series (or a re-scanned one) easily brings
@@ -219,7 +224,8 @@ class JellyfinClient(BaseClient):
             }),
         )
 
-        items = [self._movie(m) for m in movies.get("Items", [])]
+        films = [m for m in movies.get("Items", []) if m.get("Type", "Movie") == "Movie"]
+        items = [self._movie(m) for m in films[:count]]
 
         # Newly added episodes are shown per series: "Futurama, S14E08 new"
         series: dict[str, dict] = {}

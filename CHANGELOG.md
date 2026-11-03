@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.2 — 2026-11-03
+
+- Jellyfin "Newly added": collections no longer show up as new films. Jellyfin returns collections along with the films it is asked for (and ignores every filter that should leave them out), so a new or rebuilt collection topped the list; they are now dropped.
+
 ## 0.12.1 — 2026-11-02
 
 - Jellyfin "Newly added": deleted episodes no longer show up as new. Jellyfin keeps a "missing" placeholder for each deleted file and stamps it with the deletion time, so deleting watched episodes made the series look freshly added; those placeholders are now skipped.
