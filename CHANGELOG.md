@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.3 — 2026-11-15
+
+- Artwork is no longer cut short. A picture was stored as soon as its first bytes had arrived, so anything larger than the first network packets lost its end (a grey strip at the bottom, or a file some viewers refuse). Pictures are now read to the end of the response and written in one step.
+- All artwork downloads once more under new file names, which also replaces the damaged copies and any a browser has kept. Until a service is reachable again, its cards keep showing the old pictures.
+
 ## 0.12.2 — 2026-11-03
 
 - Jellyfin "Newly added": collections no longer show up as new films. Jellyfin returns collections along with the films it is asked for (and ignores every filter that should leave them out), so a new or rebuilt collection topped the list; they are now dropped.

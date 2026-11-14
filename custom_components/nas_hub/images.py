@@ -16,6 +16,11 @@ from .const import IMAGE_DIR_NAME, IMAGE_URL_BASE, MAX_IMAGE_BYTES, REQUEST_TIME
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_DOWNLOADS = 4
+READ_CHUNK = 64 * 1024
+# Part of every file name. Raising it makes all artwork download again under new names (and new URLs,
+# so no browser keeps a stale copy); the old files go with the next prune.
+# 2: up to 0.12.2 a picture was stored as soon as its first bytes had arrived, often cut short
+CACHE_GENERATION = 2
 
 
 def image_root(hass: HomeAssistant) -> Path:
@@ -59,7 +64,7 @@ class ImageCache:
 
         async def fetch(sources: list[dict]) -> str | None:
             for src in sources:
-                name = hashlib.sha1(src["url"].encode()).hexdigest()[:20] + ".jpg"
+                name = hashlib.sha1(f"{CACHE_GENERATION}:{src['url']}".encode()).hexdigest()[:20] + ".jpg"
                 if name in existing:
                     return name
                 if name not in pending:
@@ -87,17 +92,33 @@ class ImageCache:
         async with sem:
             try:
                 async with asyncio.timeout(REQUEST_TIMEOUT):
-                    resp = await session.get(src["url"], headers=auth_headers if src.get("auth") else None)
-                    if resp.status != 200 or not resp.content_type.startswith("image/"):
-                        return False
-                    body = await resp.content.read(MAX_IMAGE_BYTES + 1)
+                    async with session.get(
+                        src["url"], headers=auth_headers if src.get("auth") else None
+                    ) as resp:
+                        if resp.status != 200 or not resp.content_type.startswith("image/"):
+                            return False
+                        # Read to the end of the response: a single read(n) returns only what has
+                        # arrived so far. A connection that breaks off early raises ClientPayloadError.
+                        chunks: list[bytes] = []
+                        size = 0
+                        async for chunk in resp.content.iter_chunked(READ_CHUNK):
+                            size += len(chunk)
+                            if size > MAX_IMAGE_BYTES:
+                                return False
+                            chunks.append(chunk)
             except (aiohttp.ClientError, TimeoutError) as err:
                 _LOGGER.debug("Artwork %s not loaded: %r", src["url"], err)
                 return False
-        if not body or len(body) > MAX_IMAGE_BYTES:
+        if not size:
             return False
-        await self._hass.async_add_executor_job((self._dir / name).write_bytes, body)
+        await self._hass.async_add_executor_job(self._write, name, b"".join(chunks))
         return True
+
+    def _write(self, name: str, body: bytes) -> None:
+        """Write under a temporary name first, so the web server never hands out half a file."""
+        tmp = self._dir / f"{name}.part"
+        tmp.write_bytes(body)
+        tmp.replace(self._dir / name)
 
     def _list(self) -> list[str]:
         return [p.name for p in self._dir.iterdir() if p.is_file()]
