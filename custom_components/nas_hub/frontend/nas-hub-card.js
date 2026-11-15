@@ -435,7 +435,9 @@ const CARD_CSS = `
   }
   /* The artwork fills the item; a gradient keeps the text side readable.
      No blur or backdrop-filter: cheap enough for an old wall tablet. */
-  .bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  /* An item is a wide, flat strip that shows about a third of a 16:9 backdrop. Centred, that
+     third is mostly torsos; a quarter down from the top it catches faces and skylines. */
+  .bg { position: absolute; inset: 0; background-size: cover; background-position: center 25%; }
   /* Like the Meal Planner card: dark behind the text, the artwork at full
      brightness on the right edge */
   .has-photo::after {

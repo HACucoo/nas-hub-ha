@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.4 — 2026-11-15
+
+- Card: artwork is cropped from the upper part of the picture instead of its middle, so faces and skylines show rather than torsos. Bump the resource URL to `?v=0.12.4`.
+
 ## 0.12.3 — 2026-11-15
 
 - Artwork is no longer cut short. A picture was stored as soon as its first bytes had arrived, so anything larger than the first network packets lost its end (a grey strip at the bottom, or a file some viewers refuse). Pictures are now read to the end of the response and written in one step.
